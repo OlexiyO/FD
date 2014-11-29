@@ -6,8 +6,6 @@ import requests
 from bs4 import BeautifulSoup
 
 
-
-
 # TODO: take games from http://www.basketball-reference.com/leagues/NBA_2015_games.html
 BASE_BREF_PATH = 'http://www.basketball-reference.com'
 DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
@@ -35,7 +33,7 @@ def GetGameLinks(y, m, d):
 
 def CrawlGamesForDay(y, m, d):
   season = y if m <= 7 else y + 1
-  output_dir = os.path.join(DATA_DIR, '%d' % season, 'raw')
+  output_dir = os.path.join(DATA_DIR, '%d' % season, 'raw', 'regular')
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
 

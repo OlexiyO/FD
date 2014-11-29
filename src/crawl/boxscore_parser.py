@@ -6,6 +6,7 @@ import pandas as pd
 
 
 GOOD_CHARS = string.letters + ' '
+DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
 
 
 def PlayerIdFromPlayerLink(player_link):
@@ -24,21 +25,36 @@ def IsStatName(tag):
           'tooltip' in tag.get('class'))
 
 
-def ProcessFieldValue(field, value):
+def ProcessCellValueForTeam(field, value):
+  if field in {'fg3_pct', 'fg_pct', 'ft_pct', 'ts_pct', 'efg_pct'}:
+    return None
+  elif field == 'player':
+    return None
+  elif field == 'pf':
+    return 'team_fouls', value
+  elif field == 'mp':
+    return 'num_overtimes', (int(value) - 48 * 5) / (5 * 5)
+  else:
+    return ('team_%s' % field), value
+
+
+def ProcessCellValueForPlayer(field, value):
   if field in {'fg3_pct', 'fg_pct', 'ft_pct', 'ts_pct', 'efg_pct'}:
     return None
   elif field == 'player':
     # return None
-    return ''.join(c for c in value if c in GOOD_CHARS)
+    return field, ''.join(c for c in value if c in GOOD_CHARS)
+  elif field == 'pf':
+    return 'fouls', value
   elif field == 'mp':
     assert value[-3] == ':', value
     mins = int(value[:-3])
     secs = int(value[-2:])
     assert 0 <= secs <= 59, value
     assert 0 <= mins < 70, value
-    return mins + (secs / 60.)
+    return 'minutes', (mins + (secs / 60.))
   else:
-    return value
+    return field, value
 
 
 def FindTeams(soup):
@@ -48,7 +64,50 @@ def FindTeams(soup):
   return set(a.get('href')[7:10] for a in team_links)
 
 
-def HtmlToCsv(in_dir, out_dir, fname):
+def GetFieldNames(row):
+  table = row.findParent(name='table')
+  return [th.get('data-stat') for th in table.thead.findAll(IsStatName)]
+
+
+def GetCellValues(row):
+  return [cell.text.strip() for cell in row.findAll('td')]
+
+
+def GetPlayerStats(row):
+  field_names = GetFieldNames(row)
+  values = GetCellValues(row)
+  if len(values) == 2:
+    if 'Did Not Play' in values[1] or 'Player Suspended' in values[1]:
+      values = values[:1] + ['0:00'] + [0. for _ in field_names[2:]]
+    else:
+      raise AssertionError('Something wrong while parsing row:\n%s' % row)
+  assert len(values) == len(field_names), (values, field_names)
+  res = {}
+  for field, value in zip(field_names, values):
+    v1 = ProcessCellValueForPlayer(field, value)
+    if v1 is not None:
+      res[v1[0]] = v1[1]
+  return res
+
+
+def GetTeamStats(player_row):
+  table = player_row.findParent(name='table')
+  rows = table.findAll(class_='stat_total')
+  assert len(rows) == 1, rows
+  row = rows[0]
+  field_names = GetFieldNames(row)
+  values = GetCellValues(row)
+  assert len(values) == len(field_names), (values, field_names)
+  res = {}
+  for field, value in zip(field_names, values):
+    v1 = ProcessCellValueForTeam(field, value)
+    if v1 is not None:
+      res[v1[0]] = v1[1]
+  return res
+
+
+def HtmlToCsv(in_dir, out_dir, fname, with_advanced_stats=False):
+  print fname
   filepath = os.path.join(in_dir, fname)
   game_id = fname[:-5]
   home_team = game_id[-3:].upper()  # Drop .html
@@ -61,11 +120,12 @@ def HtmlToCsv(in_dir, out_dir, fname):
   data = {}
 
   teams = FindTeams(soup)
+  team_stats = {}
 
   for row in active_rows:
     try:
       player_id = PlayerIdFromPlayerLink(row.td.a.get('href'))
-    except AttributeError as e:
+    except AttributeError:
       if 'Inactive' not in row.td.text.strip():
         raise
       else:
@@ -75,36 +135,40 @@ def HtmlToCsv(in_dir, out_dir, fname):
       continue
 
     record_id = player_id + ':' + game_id
-    d = data.get(record_id, {})
     table = row.findParent(name='table')
+    if table.get('id').endswith('advanced') and not with_advanced_stats:
+      continue
+
     try:
       team_id = table.get('id')[:3].upper()
     except Exception:
       print 'RRR', row
       raise
     assert team_id in teams, (team_id, teams)
+
+    d = data.get(record_id, {})
     d['player_id'] = player_id
     d['team'] = team_id
     d['opponent'] = teams.difference({team_id}).pop()
     d['is_home'] = team_id == home_team
     d['game_id'] = game_id
     d['date'] = ymd
-    field_names = [th.get('data-stat') for th in table.thead.findAll(IsStatName)]
-    values = [x.text.strip() for x in row.findAll('td')]
-    if len(values) == 2:
-      if 'Did Not Play' in values[1]:
-        continue
-      if 'Player Suspended' in values[1]:
-        continue
-      assert False, row
-    assert len(values) == len(field_names), (values, field_names)
-    for field, value in zip(field_names, values):
-      v1 = ProcessFieldValue(field, value)
-      if v1 is not None:
-        d[field] = v1
+    d.update(GetPlayerStats(row))
+    if team_id not in team_stats:
+      team_stats[team_id] = GetTeamStats(row)
+    d.update(team_stats[team_id])
+
     data[record_id] = d
   df = pd.DataFrame.from_dict(data).transpose()
   csv_fname = fname[:-5] + '.csv'
-  print fname
   df.to_csv(os.path.join(out_dir, csv_fname))
   return df
+
+
+def ParseRegSeason(year):
+  base_dir = os.path.join(DATA_DIR, '%d' % year)
+  raw_dir = os.path.join(base_dir, 'raw', 'regular')
+  csv_dir = os.path.join(base_dir, 'csv', 'regular')
+  for fname in os.listdir(raw_dir):
+    if fname.endswith('.html'):
+      HtmlToCsv(raw_dir, csv_dir, fname)
