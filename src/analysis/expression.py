@@ -18,23 +18,40 @@ class AbstractExpression(object):
   def __add__(self, other):
     return BinaryOperation('add', self, other)
 
+  def __radd__(self, other):
+    return BinaryOperation('add', other, self)
+
   def __sub__(self, other):
     return BinaryOperation('sub', self, other)
+
+  def __rsub__(self, other):
+    return BinaryOperation('sub', other, self)
 
   def __mul__(self, other):
     return BinaryOperation('mul', self, other)
 
+  def __rmul__(self, other):
+    return BinaryOperation('mul', other, self)
+
+  def __rdiv__(self, other):
+    return BinaryOperation('div', other, self)
+
   def __div__(self, other):
     return BinaryOperation('div', self, other)
+
+  def __neg__(self):
+    return 0 - self
+
+
+def CreateConst(x):
+  return x if isinstance(x, AbstractExpression) else Const(x)
 
 
 class BinaryOperation(AbstractExpression):
   def __init__(self, what, a, b):
     self._oper = what
-    self._a = a
-    if not isinstance(b, AbstractExpression):
-      b = Const(b)
-    self._b = b
+    self._a = CreateConst(a)
+    self._b = CreateConst(b)
 
   def Eval(self, df):
     x = self._a.Eval(df)
@@ -58,7 +75,7 @@ class Leaf(AbstractExpression):
 
 class Const(AbstractExpression):
   def __init__(self, value):
-    self._value = value
+    self._value = float(value)
 
   def Expr(self):
     return self._value

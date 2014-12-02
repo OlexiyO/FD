@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 
 
 
+
 # TODO: take games from http://www.basketball-reference.com/leagues/NBA_2015_games.html
 BASE_BREF_PATH = 'http://www.basketball-reference.com'
 DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
