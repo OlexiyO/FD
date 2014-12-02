@@ -1,6 +1,7 @@
 import cStringIO as StringIO
 from unittest import TestCase
 
+import pandas as pd
 from pandas.util import testing as pd_test
 
 from expression import *
