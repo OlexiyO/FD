@@ -2,9 +2,9 @@ from collections import Counter
 import itertools
 import datetime
 import os
+import time
 
 import numpy as np
-
 import pandas as pd
 
 
@@ -13,22 +13,41 @@ BASIC_FIELDS = [
   'pts', 'drb', 'orb', 'trb', 'ast', 'blk', 'stl',
   'tov', 'minutes', 'fg', 'fga', 'fg3', 'fg3a', 'ft', 'fta', 'fouls']
 
+"""
+Field names:
+  trb: rebounds player got in game N.
+  trb_per_game: rebounds per game player had BEFORE game N.
+  team_trb: rebounds team got in game N
+  team_trb_per_game: rebounds team had BEFORE game N.
+  opp_trb: rebounds opponent got in game N
+  opp_trb_per_game: rebounds different opponents of my team had BEFORE game N
+      (averaging over my games)
+  other_trb_per_game: rebounds my current opponent had BEFORE game N
+      (averaging over their games)
+"""
 
 def LoadDataForSeason(year):
+  t0 = time.clock()
   DATA_DIR = 'C:/Coding/FanDuel/data/crawl/%d/csv/regular/' % year
   dfs = [pd.DataFrame.from_csv(os.path.join(DATA_DIR, fname))
          for fname in os.listdir(DATA_DIR)]
+  print 'Loaded from disk:', time.clock() - t0
   DF = pd.concat(dfs)
-  AddTeamPerGameFeatures(DF)
-  AddPlayerPerGameFeatures(DF)
+  AggreatePlayerPerGameFeatures(DF)
+  AddOpponentFeatures(DF)
+  AggregateTeamPerGameFeatures(DF)
+  AddOtherFeatures(DF)
   AddSecondaryFeatures(DF)
+  print 'Processed:', time.clock() - t0
   return DF
 
 
-def DFToFloat(df):
+def PrepareDF(df):
   for name in df.columns:
     if np.issubdtype(df[name].dtype, int):
       df[name] = df[name].astype(float)
+
+  df.sort(['game_id'], inplace=True)
 
 
 def PrintData(*args, **kwargs):
@@ -61,49 +80,95 @@ def AddSecondaryFeatures(df):
                        2 * df.blk + 2 * df.stl - df.tov)
   df['fantasy_pts_per_game'] = (df.pts_per_game + 1.2 * df.trb_per_game + 1.5 * df.ast_per_game +
                                 2 * df.blk_per_game + 2 * df.stl_per_game - df.tov_per_game)
+  # ((Tm FGA + 0.4 * Tm FTA - 1.07 * (Tm ORB / (Tm ORB + Opp DRB)) * (Tm FGA - Tm FG) + Tm TOV)
+  df['team_off_poss'] = (
+    df.team_fga + 0.4 * df.team_fta + df.team_tov +
+    -1.07 * (df.team_orb / (df.team_orb + df.opp_drb)) * (df.team_fga - df.team_fg))
+  df['team_def_poss'] = (
+    df.opp_fga + 0.4 * df.opp_fta + df.opp_tov +
+    -1.07 * (df.opp_orb / (df.opp_orb + df.team_drb)) * (df.opp_fga - df.opp_fg))
+  df['team_poss'] = .5 * (df['team_def_poss'] + df['team_off_poss'])
+
+  df['team_def_poss_per_game'] = AggregatePerGameForTeam(df, df['team_def_poss'])
+  df['team_off_poss_per_game'] = AggregatePerGameForTeam(df, df['team_off_poss'])
+  df['team_poss_per_game'] = .5 * (df['team_def_poss_per_game'] + df['team_off_poss_per_game'])
+  df['other_poss_per_game'] = MirrorFeatureForOpponent(df, 'team_poss_per_game')
 
 
-def AddTeamPerGameFeatures(df, fields=None):
-  DFToFloat(df)
+def MirrorFeatureForOpponent(df, fname_from):
+  """For example, before SAS vs MIA game:
+     A = 20 for SAS, 10 for MIA.
+     MirrorFeatureForOpponent(df, 'A', 'B')
+     would return series where opp_X will be 10 for SAS, 10 for MIA
+  """
+  key = df.game_id.map(str) + ':' + df.team.map(str)
+  # (team_name:game_id) --> value
+  data = dict(zip(key, df[fname_from]))
+  opp_key = df.game_id.map(str) + ':' + df.opponent.map(str)
+  return opp_key.map(data)
+
+
+def AddOpponentFeatures(df, fields=None):
+  PrepareDF(df)
   if fields is None:
     fields = list(set(BASIC_FIELDS) - {'minutes', 'plus_minus'})
-  fields = ['team_%s' % name for name in fields]
-  gp_fname = 'team_%s' % GAMES_PLAYED_FEATURE
-  df_sorted = df.sort(['game_id'])
-  extra_df = pd.DataFrame(index=df.index,
-                          data={s: 0. for s in fields + [gp_fname]})
+  fields_from = ['team_%s' % fname for fname in fields]
+  fields_to = ['opp_%s' % fname for fname in fields]
+  for fname_from, fname_to in zip(fields_from, fields_to):
+    df[fname_to] = MirrorFeatureForOpponent(df, fname_from)
 
-  agg_data = {}
+
+def AddOtherFeatures(df, fields_from=None, fields_to=None):
+  """Adds 'other' features."""
+  PrepareDF(df)
+  if fields_from is None:
+    assert fields_to is None, fields_to
+    fields = list(set(BASIC_FIELDS) - {'minutes', 'plus_minus'})
+    fields_from = ['team_%s_per_game' % name for name in fields]
+    fields_to = ['other_%s_per_game' % name for name in fields]
+  else:
+    assert len(fields_from) == len(fields_to)
+
+  for fname_from, fname_to in zip(fields_from, fields_to):
+    df[fname_to] = MirrorFeatureForOpponent(df, fname_from)
+
+
+def AggregateTeamPerGameFeatures(df, fields=None):
+  PrepareDF(df)
+  if fields is None:
+    fields = list(set(BASIC_FIELDS) - {'minutes', 'plus_minus'})
+    fields = ['team_%s' % name for name in fields] + ['opp_%s' % name for name in fields]
+
+  df['team_%s' % GAMES_PLAYED_FEATURE] = AggregatePerGameForTeam(
+    df, pd.Series(1., index=df.index),
+    per_game_feature=pd.Series(1., index=df.index))
+  for fname in fields:
+    df['%s_per_game' % fname] = AggregatePerGameForTeam(df, df[fname])
+
+
+def AggregatePerGameForTeam(df, orig_feature, per_game_feature=None):
+  """Returns "per_game" feature from orig_feature."""
+  if per_game_feature is None:
+    per_game_feature = df['team_%s' % GAMES_PLAYED_FEATURE]
+
+  agg_data = Counter()
   games_for_team = {}
-  for index, series in df_sorted.iterrows():
+  res = pd.Series(0., index=df.index)
+  for index, series in df.iterrows():
     player_id, game_id = index.split(':')
     team_id = series['team']
     previous_games = games_for_team.setdefault(team_id, set())
-    if game_id in previous_games:
-      games_count = float(len(previous_games) - 1)
-      data_after_game = agg_data.get(team_id)
-      extra_df[gp_fname][index] = games_count
-      for fname in fields:
-        extra_df[fname][index] = (data_after_game[fname] - series[fname]) / games_count if games_count else 0
-    else:
-      games_count = float(len(previous_games))
+    if game_id not in previous_games:
       previous_games.add(game_id)
-      if team_id not in agg_data:
-        agg_data[team_id] = {x: 0. for x in fields}
+      agg_data[team_id] += orig_feature[index]
 
-      data_before_game = agg_data.get(team_id)
-      extra_df[gp_fname][index] = games_count
-      for fname in fields:
-        extra_df[fname][index] = (data_before_game[fname] / games_count) if games_count else 0
-        agg_data[team_id][fname] += series[fname]
-
-  df[gp_fname] = extra_df[gp_fname]
-  for fname in fields:
-    df['%s_per_game' % fname] = extra_df[fname]
+    games_count = per_game_feature[index]
+    res[index] = (agg_data[team_id] - orig_feature[index]) / games_count if games_count else 0
+  return res
 
 
-def AddPlayerPerGameFeatures(df, fields=None):
-  DFToFloat(df)
+def AggreatePlayerPerGameFeatures(df, fields=None):
+  PrepareDF(df)
   if fields is None:
     fields = BASIC_FIELDS
 
