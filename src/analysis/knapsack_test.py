@@ -43,7 +43,7 @@ class KnapsackTest(TestCase):
 
   def testAlgoComplex(self):
     for n in range(100):
-      request = {Position.C: 1, Position.SG: 2, Position.SF: 2, Position.PF: 2, Position.PG: 2}
+      request = Position.FD_REQUEST
       players = []
       seed = int(time.time() * 1000000) % 1000000
       print 'Seed:', seed

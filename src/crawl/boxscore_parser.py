@@ -1,11 +1,11 @@
 import os
-import string
 
 from bs4 import BeautifulSoup
 import pandas as pd
 
+from analysis.player_info import NormalizeName
 
-GOOD_CHARS = string.letters + ' '
+
 DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
 
 
@@ -43,7 +43,7 @@ def ProcessCellValueForPlayer(field, value):
     return None
   elif field == 'player':
     # return None
-    return field, ''.join(c for c in value if c in GOOD_CHARS)
+    return field, NormalizeName(value)
   elif field == 'pf':
     return 'fouls', value
   elif field == 'mp':
