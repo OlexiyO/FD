@@ -4,7 +4,8 @@ import random
 from unittest import TestCase
 import time
 
-from analysis.knapsack import *
+from analysis.knapsack import BestChoice
+from analysis.player_info import Position, PlayerInfo
 
 
 class KnapsackTest(TestCase):
@@ -41,15 +42,15 @@ class KnapsackTest(TestCase):
     self.assertEqual([players[2], players[4]], res)
 
   def testAlgoComplex(self):
-    for n in range(30):
+    for n in range(100):
       request = {Position.C: 1, Position.SG: 2, Position.SF: 2, Position.PF: 2, Position.PG: 2}
       players = []
-      seed = time.time()
+      seed = int(time.time() * 1000000) % 1000000
       print 'Seed:', seed
       random.seed(seed)
       D = {p: [] for p in Position.ALL}
       for p, count in request.iteritems():
-        for _ in range(3 * count):
+        for _ in range(2 * count):
           pts = random.gauss(20, 7)
           salary = max(3500., math.floor(.5 + pts * 2.5) * 100.)
           p1 = PlayerInfo(position=p, name='', salary=salary, pts=pts)
@@ -65,7 +66,12 @@ class KnapsackTest(TestCase):
           tpts = sum(x.pts for x in ddd)
           if tpts > bval:
             best, bval = ddd, tpts
-      print
-      print sorted(res)
-      print sorted(best)
-      self.assertEqual(sorted(res), sorted(best))
+      if bval <= 0:
+        print 'Impossibru!'
+        self.assertIsNone(res)
+        continue
+      else:
+        print
+        print sorted(res)
+        print sorted(best)
+        self.assertEqual(sorted(res), sorted(best))

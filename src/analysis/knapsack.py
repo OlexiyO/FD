@@ -1,25 +1,10 @@
-from collections import namedtuple
 import itertools
 
-
-__all__ = ['Position', 'PlayerInfo', 'BestChoice']
-
-
-class Position(object):
-  PG = 'PG'
-  SG = 'SG'
-  SF = 'SF'
-  PF = 'PF'
-  C = 'C'
-
-
-Position.ALL = [Position.C, Position.PF, Position.PG, Position.SF, Position.SG]
-
-PlayerInfo = namedtuple('PlayerInfo', ['position', 'name', 'salary', 'pts'])
+__all__ = ['BestChoice']
 
 
 def BestChoice(players, per_position_counts, salary_cap):
-  candidates = sorted(players)
+  candidates = sorted(players, key=lambda info: info.position)
   assert all(c.salary % 100 == 0 for c in candidates)
   request = sorted(itertools.chain(*(itertools.repeat(p, cnt) for p, cnt in per_position_counts.iteritems())))
   S = int(salary_cap / 100)
@@ -55,6 +40,8 @@ def BestChoice(players, per_position_counts, salary_cap):
   ans = []
   eps = 1e-5
   r, c, s = 0, 0, S
+  if best_pts < 0:
+    return None
   while r < N:
     candidate = candidates[c]
     csal = int((candidate.salary + 99) / 100)
