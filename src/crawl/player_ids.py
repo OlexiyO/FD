@@ -6,7 +6,7 @@ from crawl import fanduel_parser
 
 
 IDS_MAPPING_PATH = 'C:/Coding/FanDuel/fd_html/ids_mapping'
-
+FD_DIR = 'C:/Coding/FanDuel/fd_html/'
 FD_TO_BR_MAPPING = None
 
 
@@ -43,7 +43,6 @@ def MapName(fd_name):
 
 
 def CreateIds():
-  FD_DIR = 'C:/Coding/FanDuel/fd_html/'
   fd_ids = {}
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):

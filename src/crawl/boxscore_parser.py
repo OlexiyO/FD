@@ -109,8 +109,8 @@ def GetTeamStats(player_row):
 def HtmlToCsv(in_dir, out_dir, fname, with_advanced_stats=False):
   print fname
   filepath = os.path.join(in_dir, fname)
-  game_id = fname[:-5]
-  home_team = game_id[-3:].upper()  # Drop .html
+  game_id = fname[:-5]  # Drop .html
+  home_team = game_id[-3:].upper()
   ymd = game_id[:8]
   with open(filepath) as fin:
     soup = BeautifulSoup(fin)
@@ -165,10 +165,21 @@ def HtmlToCsv(in_dir, out_dir, fname, with_advanced_stats=False):
   return df
 
 
-def ParseRegSeason(year):
+def ParseRegSeasonAndOverwrite(year):
   base_dir = os.path.join(DATA_DIR, '%d' % year)
   raw_dir = os.path.join(base_dir, 'raw', 'regular')
   csv_dir = os.path.join(base_dir, 'csv', 'regular')
   for fname in os.listdir(raw_dir):
     if fname.endswith('.html'):
       HtmlToCsv(raw_dir, csv_dir, fname)
+
+
+def ParseRegSeason(year):
+  base_dir = os.path.join(DATA_DIR, '%d' % year)
+  raw_dir = os.path.join(base_dir, 'raw', 'regular')
+  csv_dir = os.path.join(base_dir, 'csv', 'regular')
+  for fname in os.listdir(raw_dir):
+    if fname.endswith('.html'):
+      output_file = os.path.join(csv_dir, fname.replace('.html', '.csv'))
+      if not os.path.exists(output_file):
+        HtmlToCsv(raw_dir, csv_dir, fname)

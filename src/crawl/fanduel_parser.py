@@ -19,6 +19,6 @@ def ParseFDFile(filepath):
 
 def FDFromFile(filepath):
   return [
-    PlayerInfo(position=v[0], name=NormalizeName(v[1]), salary=v[5], health=v[-3],
+    PlayerInfo(position=v[0], name=NormalizeName(v[1]), salary=int(v[5]), health=v[-3],
                status=v[-1], pts=None, pid=GetPlayerId(fd_id))
     for fd_id, v in ParseFDFile(filepath).iteritems()]
