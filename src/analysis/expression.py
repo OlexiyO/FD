@@ -48,14 +48,52 @@ class AbstractExpression(object):
   def __or__(self, other):
     return BinaryDFMethod('fillna', self, other)
 
+  def __ror__(self, other):
+    return BinaryDFMethod('fillna', other, self)
+
   def __invert__(self):
-    return Func(lambda x: pd.Series(1., index=x.index)[x.isnull()].reindex(x.index),
+    return Func(lambda x: pd.Series(1., index=x.index)[x.isnull()],
                 lambda x: '~(%s)' & x,
                 self)
 
-  def __and__(self, other):
-    return Func(lambda x, y: x[~y.isnull()].reindex(x.index),
+  def __rand__(self, other):
+    return Func(lambda x, y: x[~y.isnull()],
                 lambda x, y: '(%s) & (%s)' & (x, y),
+                other, self)
+
+  def __and__(self, other):
+    return Func(lambda x, y: x[~y.isnull()],
+                lambda x, y: '(%s) & (%s)' & (x, y),
+                self, other)
+
+  def __eq__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x == y],
+                lambda x, y: '(%s) == (%s)' & (x, y),
+                self, other)
+
+  def __gt__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x > y],
+                lambda x, y: '(%s) > (%s)' & (x, y),
+                self, other)
+
+  def __ge__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x >= y],
+                lambda x, y: '(%s) >= (%s)' & (x, y),
+                self, other)
+
+  def __le__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x <= y],
+                lambda x, y: '(%s) <= (%s)' & (x, y),
+                self, other)
+
+  def __lt__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x < y],
+                lambda x, y: '(%s) < (%s)' & (x, y),
+                self, other)
+
+  def __ne__(self, other):
+    return Func(lambda x, y: pd.Series(1., index=x.index)[x != y],
+                lambda x, y: '(%s) != (%s)' & (x, y),
                 self, other)
 
 
@@ -70,7 +108,8 @@ class Func(AbstractExpression):
     self._args = [CreateConst(a) for a in args]
 
   def Eval(self, df):
-    return self._func(*[a.Eval(df) for a in self._args])
+    evaled_args = [a.Eval(df) for a in self._args]
+    return self._func(*evaled_args).reindex(evaled_args[0].index)
 
   def Expr(self):
     return self._printout(*[a.Expr() for a in self._args])

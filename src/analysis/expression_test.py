@@ -4,6 +4,7 @@ from unittest import TestCase
 import pandas as pd
 import numpy as np
 
+
 nan = np.nan
 from pandas.util import testing as pd_test
 
@@ -35,7 +36,7 @@ class ExpressionTest(TestCase):
   def testAndOr(self):
     df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
                        'y': [1, nan, 2, nan, 4, nan],
-                       'z': [1., 2., 3., 4., 5., 6.],
+                       'z': [1., 2., 3., 2., 5., 2.],
                        'empty': [nan] * 6})
     pd_test.assert_series_equal(
       pd.Series([0, 1, 2, 2, 3, np.nan]),
@@ -67,3 +68,51 @@ class ExpressionTest(TestCase):
     pd_test.assert_series_equal(
       pd.Series([nan, nan, 2., nan, nan, nan]),
       (Leaf('y') & (~Leaf('x'))).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([0, 1, nan, 2, 3, nan]),
+      (Leaf('x') & 1).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1, 1, nan, 1, 1, nan]),
+      (1 & Leaf('x')).Eval(df))
+
+  def testComparisonOperators(self):
+    df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
+                       'y': [1, nan, 2, nan, 4, nan],
+                       'z': [1., 2., 3., 2., 5., 2.],
+                       'empty': [nan] * 6})
+    pd_test.assert_series_equal(
+      pd.Series([1., nan, nan, nan, 1., nan]),
+      (Leaf('x') < Leaf('y')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., nan, nan, nan, 1., nan]),
+      (Leaf('y') > Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., 1., nan, nan, 1., nan]),
+      (Leaf('z') > Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., 1., nan, 1., 1., nan]),
+      (Leaf('z') >= Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., nan, nan, nan, nan, nan]),
+      (Leaf('z') == 1.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., nan, nan, nan, nan, nan]),
+      (1 >= Leaf('z')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, 1., 1., 1., 1., 1.]),
+      (1 < Leaf('z')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1., 1., 1., 1., 1., 1.]),
+      (Leaf('z') >= 1.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, 1., 1., 1., 1., 1.]),
+      (Leaf('z') >= 2.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, 1., nan, 1., nan]),
+      (Leaf('z') > 2.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, 1, nan, 1, nan, 1]),
+      (Leaf('z') == 2.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, 1, nan, 1, nan, 1]),
+      (2. == Leaf('z')).Eval(df))
