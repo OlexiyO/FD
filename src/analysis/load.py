@@ -167,6 +167,34 @@ def AggregatePerGameForTeam(df, orig_feature, per_game_feature=None):
   return res
 
 
+def AddRestFeaturesForPlayer(df):
+  # TODO(olexiy): Add features:
+  # *) "when team played last time".
+  # *) Whether there was travel since last game.
+  # *) Games before the last.
+  last_game = {}
+  rest = pd.Series(None, df.index)
+  prev_game_mp = pd.Series(None, df.index)
+  for index, row in df.iterrows():
+    pid = row['player_id']
+    when_str = row['game_id'][:8]
+    minutes = row['minutes']
+    when = datetime.date(int(when_str[:4]), int(when_str[4:6]), int(when_str[6:8]))
+    last_tup = last_game.get(pid)
+    if last_tup:
+      last, mp = last_tup
+      assert last < when, index
+      rest[index] = min(7, (when - last).days)
+      prev_game_mp[index] = mp
+    else:
+      rest[index] = 7
+      prev_game_mp[index] = 30
+    last_game[pid] = when, minutes
+
+  df['player_rest'] = rest
+  df['player_previous_minutes'] = prev_game_mp
+
+
 def AggreatePlayerPerGameFeatures(df, fields=None):
   PrepareDF(df)
   if fields is None:
@@ -193,6 +221,8 @@ def AggreatePlayerPerGameFeatures(df, fields=None):
   df[GAMES_PLAYED_FEATURE] = extra_df[GAMES_PLAYED_FEATURE]
   for fname in fields:
     df['%s_per_game' % fname] = extra_df[fname]
+
+  AddRestFeaturesForPlayer(df)
 
 
 def GameDate(game_id):

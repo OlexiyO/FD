@@ -2,6 +2,9 @@ import cStringIO as StringIO
 from unittest import TestCase
 
 import pandas as pd
+import numpy as np
+
+nan = np.nan
 from pandas.util import testing as pd_test
 
 from expression import *
@@ -28,3 +31,39 @@ class ExpressionTest(TestCase):
     pd_test.assert_series_equal(-df.trb.astype(float), (-Leaf('trb')).Eval(df))
     pd_test.assert_series_equal(2. / df.trb, (2. / Leaf('trb')).Eval(df))
     pd_test.assert_series_equal(df.trb / 2., (Leaf('trb') / 2).Eval(df))
+
+  def testAndOr(self):
+    df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
+                       'y': [1, nan, 2, nan, 4, nan],
+                       'z': [1., 2., 3., 4., 5., 6.],
+                       'empty': [nan] * 6})
+    pd_test.assert_series_equal(
+      pd.Series([0, 1, 2, 2, 3, np.nan]),
+      (Leaf('x') | Leaf('y')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1, nan, nan, nan, 7, nan]),
+      (Leaf('x') + Leaf('y')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([0, nan, nan, nan, 3, nan]),
+      (Leaf('x') & Leaf('y')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, 1, nan, nan, 1]),
+      (~Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, 1, nan, nan, 1]),
+      (~Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, nan, nan, nan, nan]),
+      (~Leaf('z')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, nan, nan, nan, nan]),
+      (Leaf('x') & Leaf('empty')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([1.] * 6),
+      (~Leaf('empty')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([0., 1., 1., 2., 3, 1.]),
+      (Leaf('x') | (~Leaf('x'))).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([nan, nan, 2., nan, nan, nan]),
+      (Leaf('y') & (~Leaf('x'))).Eval(df))

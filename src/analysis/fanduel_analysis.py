@@ -8,7 +8,8 @@ from crawl.player_ids import FD_DIR
 
 
 def Emulate(fd_data, player_predictions, player_results,
-            requests=Position.FD_REQUEST, salary_cap=60000):
+            requests=Position.FD_REQUEST, salary_cap=60000,
+            print_results=False):
   """
 
   Args:
@@ -25,6 +26,9 @@ def Emulate(fd_data, player_predictions, player_results,
   best = knapsack.BestChoice(updated_data, requests, salary_cap)
   if best is None:
     return None
+  if print_results:
+    for p in best:
+      print p, player_results.get(p.pid, 0)
   return sum(player_results.get(pi.pid, 0) for pi in best)
 
 
@@ -40,7 +44,7 @@ def _SeriesToPlayerMap(series, date):
 DF_15 = None
 
 
-def CheckAllFDGames(prediction_expr, df=None, only_healthy=True):
+def CheckAllFDGames(prediction_expr, df=None, only_healthy=True, print_results=False):
   if df is None:
     global DF_15
     if DF_15 is None:
@@ -57,4 +61,4 @@ def CheckAllFDGames(prediction_expr, df=None, only_healthy=True):
     date_need = fname[:10].replace('_', '')
     prediction_for_day = _SeriesToPlayerMap(prediction_series, date_need)
     results_for_day = _SeriesToPlayerMap(df['fantasy_pts'], date_need)
-    print date_need, Emulate(players_list, prediction_for_day, results_for_day)
+    print Emulate(players_list, prediction_for_day, results_for_day, print_results=print_results)
