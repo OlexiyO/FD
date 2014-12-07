@@ -12,6 +12,12 @@ OPERS = {
 __all__ = ['AbstractExpression', 'Leaf', 'BinaryDFMethod']
 
 class AbstractExpression(object):
+  def __str__(self):
+    return self.Expr()
+
+  def __repr__(self):
+    return self.Expr()
+
   def Expr(self):
     raise NotImplementedError
 
@@ -53,47 +59,47 @@ class AbstractExpression(object):
 
   def __invert__(self):
     return Func(lambda x: pd.Series(1., index=x.index)[x.isnull()],
-                lambda x: '~(%s)' & x,
+                lambda x: '~(%s)' % x,
                 self)
 
   def __rand__(self, other):
     return Func(lambda x, y: x[~y.isnull()],
-                lambda x, y: '(%s) & (%s)' & (x, y),
+                lambda x, y: '(%s) & (%s)' % (x, y),
                 other, self)
 
   def __and__(self, other):
     return Func(lambda x, y: x[~y.isnull()],
-                lambda x, y: '(%s) & (%s)' & (x, y),
+                lambda x, y: '(%s) & (%s)' % (x, y),
                 self, other)
 
   def __eq__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x == y],
-                lambda x, y: '(%s) == (%s)' & (x, y),
+                lambda x, y: '(%s) == (%s)' % (x, y),
                 self, other)
 
   def __gt__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x > y],
-                lambda x, y: '(%s) > (%s)' & (x, y),
+                lambda x, y: '(%s) > (%s)' % (x, y),
                 self, other)
 
   def __ge__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x >= y],
-                lambda x, y: '(%s) >= (%s)' & (x, y),
+                lambda x, y: '(%s) >= (%s)' % (x, y),
                 self, other)
 
   def __le__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x <= y],
-                lambda x, y: '(%s) <= (%s)' & (x, y),
+                lambda x, y: '(%s) <= (%s)' % (x, y),
                 self, other)
 
   def __lt__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x < y],
-                lambda x, y: '(%s) < (%s)' & (x, y),
+                lambda x, y: '(%s) < (%s)' % (x, y),
                 self, other)
 
   def __ne__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x != y],
-                lambda x, y: '(%s) != (%s)' & (x, y),
+                lambda x, y: '(%s) != (%s)' % (x, y),
                 self, other)
 
 
