@@ -1,9 +1,11 @@
 import itertools
+import time
 
 __all__ = ['BestChoice']
 
-
+T = 0
 def BestChoice(players, per_position_counts, salary_cap):
+  t0 = time.clock()
   candidates = sorted(players, key=lambda info: info.position)
   assert all(c.salary % 100 == 0 for c in candidates)
   request = sorted(itertools.chain(*(itertools.repeat(p, cnt) for p, cnt in per_position_counts.iteritems())))
@@ -17,6 +19,8 @@ def BestChoice(players, per_position_counts, salary_cap):
       memo[n].append([None] * (S + 1))
 
   BAD = -10000000.
+  salaries = [int((cand.salary + 99) / 100) for cand in candidates]
+  min_salary = min(salaries)
 
   def GV(request_index, candidate_index, salary_left):
     if request_index == N:
@@ -26,7 +30,7 @@ def BestChoice(players, per_position_counts, salary_cap):
     if memo[request_index][candidate_index][salary_left] is not None:
       return memo[request_index][candidate_index][salary_left]
     c1 = candidates[candidate_index]
-    sal1 = int((c1.salary + 99) / 100)
+    sal1 = salaries[candidate_index]
     skip_score = GV(request_index, candidate_index + 1, salary_left)
     if c1.position != request[request_index] or sal1 > salary_left:
       memo[request_index][candidate_index][salary_left] = skip_score
@@ -35,6 +39,7 @@ def BestChoice(players, per_position_counts, salary_cap):
       res = max(skip_score, c1.pts + GV(request_index + 1, candidate_index + 1, salary_left - sal1))
       memo[request_index][candidate_index][salary_left] = res
       return res
+
 
   best_pts = GV(0, 0, S)
   ans = []
@@ -57,4 +62,6 @@ def BestChoice(players, per_position_counts, salary_cap):
       c += 1
 
   assert len(ans) == len(request)
+  global T
+  T += time.clock() - t0
   return ans

@@ -1,5 +1,4 @@
 from collections import Counter
-import itertools
 import datetime
 import os
 import time
@@ -33,7 +32,8 @@ def LoadDataForSeason(year):
          for fname in os.listdir(DATA_DIR)]
   print 'Loaded from disk:', time.clock() - t0
   DF = pd.concat(dfs)
-  AggreatePlayerPerGameFeatures(DF)
+  DF['date_id'] = DF['game_id'].map(lambda x: x[:8]).astype(int)
+  AggregatePlayerPerGameFeatures(DF)
   AddOpponentFeatures(DF)
   AggregateTeamPerGameFeatures(DF)
   AddOtherFeatures(DF)
@@ -47,32 +47,7 @@ def PrepareDF(df):
     if np.issubdtype(df[name].dtype, int):
       df[name] = df[name].astype(float)
 
-  df.sort(['game_id'], inplace=True)
-
-
-def PrintData(*args, **kwargs):
-  topn = kwargs.pop('topn', 20)
-  assert not kwargs
-  if topn > 0:
-    a = 0
-    b = topn
-  else:
-    a = len(args[0]) + topn  # topn is negative
-    b = None
-  if len(args) < 1:
-    for v in itertools.islice(args[0], a, b):
-      print v
-  else:
-    data = [[] for _ in args]
-
-    for i, val in enumerate(itertools.islice(itertools.izip(*args), a, b)):
-      for j, x in enumerate(val):
-        data[j].append(str(x))
-    for i, col in enumerate(data):
-      maxw = max(len(s) for s in col)
-      data[i] = [s.ljust(maxw) for s in col]
-    for vals in itertools.izip(*data):
-      print '\t'.join('%s' % s for s in vals)
+  df.sort(['date_id', 'game_id'], inplace=True)
 
 
 def AddSecondaryFeatures(df):
@@ -101,10 +76,10 @@ def MirrorFeatureForOpponent(df, fname_from):
      MirrorFeatureForOpponent(df, 'A', 'B')
      would return series where opp_X will be 10 for SAS, 10 for MIA
   """
-  key = df.game_id.map(str) + ':' + df.team.map(str)
+  key = df['game_id'].map(str) + ':' + df['team'].map(str)
   # (team_name:game_id) --> value
   data = dict(zip(key, df[fname_from]))
-  opp_key = df.game_id.map(str) + ':' + df.opponent.map(str)
+  opp_key = df['game_id'].map(str) + ':' + df['opponent'].map(str)
   return opp_key.map(data)
 
 
@@ -195,17 +170,16 @@ def AddRestFeaturesForPlayer(df):
   df['player_previous_minutes'] = prev_game_mp
 
 
-def AggreatePlayerPerGameFeatures(df, fields=None):
+def AggregatePlayerPerGameFeatures(df, fields=None):
   PrepareDF(df)
   if fields is None:
     fields = BASIC_FIELDS
 
   agg_data = {}
-  df_sorted = df.sort(['game_id'])
   extra_df = pd.DataFrame(index=df.index,
                           data={s: 0. for s in fields + ['games_played']})
   games_played = Counter()
-  for index, series in df_sorted.iterrows():
+  for index, series in df.iterrows():
     player_id, game_id = index.split(':')
     player_data = agg_data.get(player_id)
     if player_data is None:
@@ -215,7 +189,8 @@ def AggreatePlayerPerGameFeatures(df, fields=None):
     for fname in fields:
       extra_df[fname][index] = player_data[fname] / games_count if games_count else 0
       player_data[fname] += series[fname]
-    games_played[player_id] += 1
+    if series['minutes'] >= .1:
+      games_played[player_id] += 1
     agg_data[player_id] = player_data
 
   df[GAMES_PLAYED_FEATURE] = extra_df[GAMES_PLAYED_FEATURE]

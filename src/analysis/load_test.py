@@ -51,7 +51,7 @@ class LoadTest(TestCase):
       'gru:20141004pho,4,4,4,20141004pho,pho',
     ]))
     test_df = pd.DataFrame.from_csv(sio)
-    load.AggreatePlayerPerGameFeatures(test_df, ['pts', 'trb'])
+    load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'])
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,games_played,pts_per_game,trb_per_game',
       'ole:20141003sas,13,5,3,20141003sas,sas,1,24,15',

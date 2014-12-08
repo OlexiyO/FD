@@ -1,5 +1,6 @@
 from analysis.expression import *
 
+golden = Leaf('fantasy_pts')
 expr1 = Leaf('fantasy_pts_per_game')
 old_tempo = Leaf('team_poss_per_game')
 predicted_tempo = (Leaf('team_poss_per_game') + Leaf('other_poss_per_game')) / 2.

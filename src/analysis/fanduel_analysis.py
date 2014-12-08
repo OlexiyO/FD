@@ -1,15 +1,15 @@
 import os
+import itertools
 
 from analysis import knapsack
 from analysis.player_info import Position, PlayerStatus
-from analysis import load
 from crawl import fanduel_parser
 from crawl.player_ids import FD_DIR
 
 
 def Emulate(fd_data, player_predictions, player_results,
             requests=Position.FD_REQUEST, salary_cap=60000,
-            print_results=False):
+            print_selections=False):
   """
 
   Args:
@@ -26,7 +26,7 @@ def Emulate(fd_data, player_predictions, player_results,
   best = knapsack.BestChoice(updated_data, requests, salary_cap)
   if best is None:
     return None
-  if print_results:
+  if print_selections:
     for p in best:
       print p, player_results.get(p.pid, 0)
   return sum(player_results.get(pi.pid, 0) for pi in best)
@@ -36,22 +36,18 @@ def _SeriesToPlayerMap(series, date):
   res = {}
   for index, value in series.iteritems():
     pid, game_id = index.split(':')
-    if game_id.startswith(date):
-      res[pid] = value
+    assert game_id.startswith(date)
+    res[pid] = value
   return res
 
 
 DF_15 = None
 
 
-def CheckAllFDGames(prediction_expr, df=None, only_healthy=True, print_results=False):
-  if df is None:
-    global DF_15
-    if DF_15 is None:
-      DF_15 = load.LoadDataForSeason(2015)
-    df = DF_15
-
-  prediction_series = prediction_expr.Eval(df)
+def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
+                    only_positive_minutes=True):
+  knapsack.T = 0
+  pred_series = [p.Eval(df) for p in predictions]
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):
       continue
@@ -59,6 +55,25 @@ def CheckAllFDGames(prediction_expr, df=None, only_healthy=True, print_results=F
     if only_healthy:
       players_list = [p for p in players_list if p.status == PlayerStatus.OK]
     date_need = fname[:10].replace('_', '')
-    prediction_for_day = _SeriesToPlayerMap(prediction_series, date_need)
-    results_for_day = _SeriesToPlayerMap(df['fantasy_pts'], date_need)
-    print Emulate(players_list, prediction_for_day, results_for_day, print_results=print_results)
+    flt = df['date_id'] == int(date_need)
+    pid = df['player_id'][flt]
+    pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
+    results_for_day = dict(itertools.izip(pid, df['fantasy_pts'][flt]))
+    results = [Emulate(players_list, pd, results_for_day, print_selections=print_selections)
+               for pd in pred_for_day]
+    print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
+
+  print knapsack.T
+
+
+def CheckVirtualFDGames(expr_base, expr_test, df):
+  ser_base, ser_test = expr_base.Eval(df), expr_test.Eval(df)
+  for date_id in set(df['date_id']):
+    flt = df['date_id'] == date_id
+    pred_base = ser_base[flt]
+    pred_test = ser_test[flt]
+    pid = df['player_id'][flt]
+    results_for_day = dict(itertools.izip(pid, df['fantasy_pts'][flt]))
+    results = [Emulate(players_list, pd, results_for_day, print_selections=print_selections)
+               for pd in pred_for_day]
+    print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
