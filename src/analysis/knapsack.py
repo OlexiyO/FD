@@ -20,10 +20,9 @@ def BestChoice(players, per_position_counts, salary_cap):
 
   BAD = -10000000.
   salaries = [int((cand.salary + 99) / 100) for cand in candidates]
-  min_salary = min(salaries)
 
   def GV(request_index, candidate_index, salary_left):
-    if request_index == N:
+    if request_index >= N:
       return 0
     if candidate_index >= C:
       return BAD

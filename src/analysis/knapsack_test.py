@@ -4,6 +4,8 @@ import random
 from unittest import TestCase
 import time
 
+from analysis.fanduel_analysis import CheckVirtualFDGames
+
 from analysis.knapsack import BestChoice
 from analysis.player_info import Position, PlayerInfo
 
@@ -75,3 +77,13 @@ class KnapsackTest(TestCase):
         print sorted(res)
         print sorted(best)
         self.assertEqual(sorted(res), sorted(best))
+
+
+  def testXXX(self):
+    from analysis import expression
+    from analysis import load
+
+    expr1 = expression.Leaf('fantasy_pts_per_game')
+    golden = expression.Leaf('fantasy_pts')
+    DF_15 = load.LoadDataForSeason(2015)
+    CheckVirtualFDGames(expr1, golden, DF_15)

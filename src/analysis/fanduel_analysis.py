@@ -1,10 +1,12 @@
 import os
 import itertools
 
+import pandas as pd
+
 from analysis import knapsack
-from analysis.player_info import Position, PlayerStatus
-from crawl import fanduel_parser
-from crawl.player_ids import FD_DIR
+from analysis.player_info import Position, PlayerStatus, PlayerInfo, NormalizeName
+from crawl.fanduel_parser import ParseFDFile
+from crawl.player_ids import FD_DIR, GetPlayerPosition, GetPlayerIdFromFDId
 
 
 def Emulate(fd_data, player_predictions, player_results,
@@ -44,6 +46,13 @@ def _SeriesToPlayerMap(series, date):
 DF_15 = None
 
 
+def FDFromFile(filepath):
+  return [
+    PlayerInfo(position=v[0], name=NormalizeName(v[1]), salary=int(v[5]), health=v[-3],
+               status=v[-1], pts=None, pid=GetPlayerIdFromFDId(fd_id))
+    for fd_id, v in ParseFDFile(filepath).iteritems()]
+
+
 def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
                     only_positive_minutes=True):
   knapsack.T = 0
@@ -51,7 +60,7 @@ def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):
       continue
-    players_list = fanduel_parser.FDFromFile(os.path.join(FD_DIR, fname))
+    players_list = FDFromFile(os.path.join(FD_DIR, fname))
     if only_healthy:
       players_list = [p for p in players_list if p.status == PlayerStatus.OK]
     date_need = fname[:10].replace('_', '')
@@ -66,14 +75,43 @@ def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
   print knapsack.T
 
 
-def CheckVirtualFDGames(expr_base, expr_test, df):
+def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
   ser_base, ser_test = expr_base.Eval(df), expr_test.Eval(df)
-  for date_id in set(df['date_id']):
+  scores_base, scores_test = [], []
+  gameday = 0
+  for date_id in sorted(set(df['date_id'])):
+    gameday += 1
+    if gameday < 10:
+      continue
     flt = df['date_id'] == date_id
-    pred_base = ser_base[flt]
-    pred_test = ser_test[flt]
-    pid = df['player_id'][flt]
-    results_for_day = dict(itertools.izip(pid, df['fantasy_pts'][flt]))
-    results = [Emulate(players_list, pd, results_for_day, print_selections=print_selections)
-               for pd in pred_for_day]
-    print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
+    pids = df['player_id'][flt]
+    pred_base = dict(itertools.izip(pids, ser_base[flt]))
+    pred_test = dict(itertools.izip(pids, ser_test[flt]))
+    salaries = ((2.5 * df['fantasy_pts_per_game'][flt]).astype(int) * 100).map(lambda x: max(x, 3500))
+
+    results_for_day = dict(itertools.izip(pids, df['fantasy_pts'][flt]))
+    players_list = [
+      PlayerInfo(position=GetPlayerPosition(pid), name=pid,
+                 salary=sal, health=PlayerStatus.OK,
+                 status=PlayerStatus.OK, pts=None, pid=pid)
+      for pid, sal in zip(pids, salaries)
+      if GetPlayerPosition(pid) is not None]
+    if not players_list:
+      continue
+    sb = Emulate(players_list, pred_base, results_for_day, print_selections=False)
+    st = Emulate(players_list, pred_test, results_for_day, print_selections=False)
+    scores_base.append(sb)
+    scores_test.append(st)
+    if print_per_day:
+      print str(date_id).ljust(15), '\t', '\t'.join('%.1f' % r for r in [sb, st])
+
+  wins = sum(1 for x, y in zip(scores_base, scores_test) if x > y + .10001)
+  losses = sum(1 for x, y in zip(scores_base, scores_test) if x < y - .10001)
+  print 'Base:', expr_base
+  print 'Test:', expr_test
+  print 'Base\t\tTest\t\tDraw'
+  print '%d\t\t%d\t\t(%d):' % (wins, losses, len(scores_base) - wins - losses)
+  res_base = pd.Series(scores_base)
+  res_test = pd.Series(scores_test)
+  print '%.1f\t\t%.1f        median' % (res_base.median(), res_test.median())
+  print '%.1f\t\t%.1f        mean' % (res_base.mean(), res_test.mean())

@@ -12,6 +12,13 @@ from expression import *
 
 
 class ExpressionTest(TestCase):
+  def testExpr(self):
+    self.assertEqual('x', Leaf('x').Expr())
+    self.assertEqual('(~x)', (~Leaf('x')).Expr())
+    self.assertEqual('(x + y)', (Leaf('x') + Leaf('y')).Expr())
+    self.assertEqual('(x & y)', (Leaf('x') & Leaf('y')).Expr())
+    self.assertEqual('(x | 1.0)', (Leaf('x') | 1).Expr())
+
   def testEval(self):
     sio = StringIO.StringIO('\n'.join([
       ',pts,trb,team_ast,game_id,team',

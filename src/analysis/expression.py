@@ -59,47 +59,47 @@ class AbstractExpression(object):
 
   def __invert__(self):
     return Func(lambda x: pd.Series(1., index=x.index)[x.isnull()],
-                lambda x: '~(%s)' % x,
+                lambda x: '~%s' % x,
                 self)
 
   def __rand__(self, other):
     return Func(lambda x, y: x[~y.isnull()],
-                lambda x, y: '(%s) & (%s)' % (x, y),
+                lambda x, y: '%s & %s' % (x, y),
                 other, self)
 
   def __and__(self, other):
     return Func(lambda x, y: x[~y.isnull()],
-                lambda x, y: '(%s) & (%s)' % (x, y),
+                lambda x, y: '%s & %s' % (x, y),
                 self, other)
 
   def __eq__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x == y],
-                lambda x, y: '(%s) == (%s)' % (x, y),
+                lambda x, y: '%s == %s' % (x, y),
                 self, other)
 
   def __gt__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x > y],
-                lambda x, y: '(%s) > (%s)' % (x, y),
+                lambda x, y: '%s > %s' % (x, y),
                 self, other)
 
   def __ge__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x >= y],
-                lambda x, y: '(%s) >= (%s)' % (x, y),
+                lambda x, y: '%s >= %s' % (x, y),
                 self, other)
 
   def __le__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x <= y],
-                lambda x, y: '(%s) <= (%s)' % (x, y),
+                lambda x, y: '%s <= %s' % (x, y),
                 self, other)
 
   def __lt__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x < y],
-                lambda x, y: '(%s) < (%s)' % (x, y),
+                lambda x, y: '%s < %s' % (x, y),
                 self, other)
 
   def __ne__(self, other):
     return Func(lambda x, y: pd.Series(1., index=x.index)[x != y],
-                lambda x, y: '(%s) != (%s)' % (x, y),
+                lambda x, y: '%s != %s' % (x, y),
                 self, other)
 
 
@@ -118,7 +118,7 @@ class Func(AbstractExpression):
     return self._func(*evaled_args).reindex(evaled_args[0].index)
 
   def Expr(self):
-    return self._printout(*[a.Expr() for a in self._args])
+    return '(%s)' % self._printout(*[a.Expr() for a in self._args])
 
 
 class BinaryDFMethod(AbstractExpression):
@@ -133,7 +133,7 @@ class BinaryDFMethod(AbstractExpression):
     return getattr(x, self._oper)(y)
 
   def Expr(self):
-    return '(%s) %s (%s)' % (self._a.Expr(), OPERS[self._oper], self._b.Expr())
+    return '(%s %s %s)' % (self._a.Expr(), OPERS[self._oper], self._b.Expr())
 
 
 class Leaf(AbstractExpression):
@@ -152,7 +152,7 @@ class Const(AbstractExpression):
     self._value = float(value)
 
   def Expr(self):
-    return self._value
+    return '%s' % self._value
 
   def Eval(self, df):
     return pd.Series(self._value, index=df.index)

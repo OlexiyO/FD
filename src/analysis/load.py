@@ -34,6 +34,7 @@ def LoadDataForSeason(year):
   DF = pd.concat(dfs)
   DF['date_id'] = DF['game_id'].map(lambda x: x[:8]).astype(int)
   AggregatePlayerPerGameFeatures(DF)
+  AddRestFeaturesForPlayer(DF)
   AddOpponentFeatures(DF)
   AggregateTeamPerGameFeatures(DF)
   AddOtherFeatures(DF)
@@ -47,7 +48,11 @@ def PrepareDF(df):
     if np.issubdtype(df[name].dtype, int):
       df[name] = df[name].astype(float)
 
-  df.sort(['date_id', 'game_id'], inplace=True)
+  if 'date_id' in df.columns:
+    df.sort(['date_id', 'game_id'], inplace=True)
+  else:
+    # Test
+    df.sort(['game_id'], inplace=True)
 
 
 def AddSecondaryFeatures(df):
@@ -196,8 +201,6 @@ def AggregatePlayerPerGameFeatures(df, fields=None):
   df[GAMES_PLAYED_FEATURE] = extra_df[GAMES_PLAYED_FEATURE]
   for fname in fields:
     df['%s_per_game' % fname] = extra_df[fname]
-
-  AddRestFeaturesForPlayer(df)
 
 
 def GameDate(game_id):

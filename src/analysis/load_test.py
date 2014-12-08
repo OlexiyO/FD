@@ -42,24 +42,24 @@ class LoadTest(TestCase):
 
   def testAddPlayerPerGameFeatures(self):
     sio = StringIO.StringIO('\n'.join([
-      ',pts,trb,ast,game_id,team',
-      'ole:20141003sas,13,5,3,20141003sas,sas',
-      'gru:20141006pho,12,5,3,20141006pho,pho',
-      'ole:20141006pho,1,4,0,20141006pho,sas',
-      'val:20141001sas,7,5,2,20141001sas,sas',
-      'ole:20141001sas,24,15,13,20141001sas,sas',
-      'gru:20141004pho,4,4,4,20141004pho,pho',
+      ',pts,trb,ast,game_id,team,minutes',
+      'ole:20141003sas,13,5,3,20141003sas,sas,10',
+      'gru:20141006pho,12,5,3,20141006pho,pho,10',
+      'ole:20141006pho,1,4,0,20141006pho,sas,10',
+      'val:20141001sas,7,5,2,20141001sas,sas,10',
+      'ole:20141001sas,24,15,13,20141001sas,sas,10',
+      'gru:20141004pho,4,4,4,20141004pho,pho,10',
     ]))
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'])
     expected_sio = StringIO.StringIO('\n'.join([
-      ',pts,trb,ast,game_id,team,games_played,pts_per_game,trb_per_game',
-      'ole:20141003sas,13,5,3,20141003sas,sas,1,24,15',
-      'gru:20141006pho,12,5,3,20141006pho,pho,1,4,4',
-      'ole:20141006pho,1,4,0,20141006pho,sas,2,18.5,10',
-      'val:20141001sas,7,5,2,20141001sas,sas,0,0,0',
-      'ole:20141001sas,24,15,13,20141001sas,sas,0,0,0',
-      'gru:20141004pho,4,4,4,20141004pho,pho,0,0,0',
+      ',pts,trb,ast,game_id,team,minutes,games_played,pts_per_game,trb_per_game',
+      'ole:20141003sas,13,5,3,20141003sas,sas,10,1,24,15',
+      'gru:20141006pho,12,5,3,20141006pho,pho,10,1,4,4',
+      'ole:20141006pho,1,4,0,20141006pho,sas,10,2,18.5,10',
+      'val:20141001sas,7,5,2,20141001sas,sas,10,0,0,0',
+      'ole:20141001sas,24,15,13,20141001sas,sas,10,0,0,0',
+      'gru:20141004pho,4,4,4,20141004pho,pho,10,0,0,0',
     ]))
     expected = pd.DataFrame.from_csv(expected_sio)
     load.PrepareDF(expected)

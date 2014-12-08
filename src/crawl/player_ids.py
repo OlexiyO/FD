@@ -7,15 +7,27 @@ from crawl import fanduel_parser
 
 IDS_MAPPING_PATH = 'C:/Coding/FanDuel/fd_html/ids_mapping'
 FD_DIR = 'C:/Coding/FanDuel/fd_html/'
-FD_TO_BR_MAPPING = None
+FDID_TO_PID_MAPPING = None
+PID_TO_POSITION_MAPPING = None
 
 
-def GetPlayerId(fd_id):
-  global FD_TO_BR_MAPPING
-  if FD_TO_BR_MAPPING is None:
+def GetPlayerPosition(pid):
+  global PID_TO_POSITION_MAPPING
+  if PID_TO_POSITION_MAPPING is None:
+    PID_TO_POSITION_MAPPING = {
+      GetPlayerIdFromFDId(fdid): v[0]
+      for unused_fname, fdid, v in AllFDData()
+    }
+
+  return PID_TO_POSITION_MAPPING.get(pid)
+
+
+def GetPlayerIdFromFDId(fd_id):
+  global FDID_TO_PID_MAPPING
+  if FDID_TO_PID_MAPPING is None:
     with open(IDS_MAPPING_PATH) as fin:
-      FD_TO_BR_MAPPING = eval(fin.read())
-  return FD_TO_BR_MAPPING.get(fd_id, None)
+      FDID_TO_PID_MAPPING = eval(fin.read())
+  return FDID_TO_PID_MAPPING.get(fd_id, None)
 
 
 SPECIAL_NAMES = {
@@ -42,17 +54,22 @@ def MapName(fd_name):
   return SPECIAL_NAMES.get(fd_name, fd_name)
 
 
-def CreateIds():
-  fd_ids = {}
+def AllFDData():
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):
       continue
     tmp = fanduel_parser.ParseFDFile(os.path.join(FD_DIR, fname))
     for fdid, v in tmp.iteritems():
-      name = NormalizeName(v[1])
-      if name in fd_ids:
-        assert fd_ids[name] == fdid
-      fd_ids[name] = fdid
+      yield fname, fdid, v
+
+
+def CreateIds():
+  fd_ids = {}
+  for fname, fdid, v in AllFDData():
+    name = NormalizeName(v[1])
+    if name in fd_ids:
+      assert fd_ids[name] == fdid
+    fd_ids[name] = fdid
 
   DF_14 = load.LoadDataForSeason(2014)
   DF_15 = load.LoadDataForSeason(2015)
