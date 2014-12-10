@@ -39,6 +39,9 @@ def LoadDataForSeason(year):
   AggregateTeamPerGameFeatures(DF)
   AddOtherFeatures(DF)
   AddSecondaryFeatures(DF)
+  if 'is_home' in DF.columns():
+    # TODO: Fix this during parsing.
+    DF['is_home'] = DF['is_home'][DF['is_home']]
   print 'Processed:', time.clock() - t0
   return DF
 

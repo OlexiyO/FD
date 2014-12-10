@@ -55,8 +55,8 @@ def FDFromFile(filepath):
 
 def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
                     only_positive_minutes=True):
-  knapsack.T = 0
   pred_series = [p.Eval(df) for p in predictions]
+  all_results = [[] for _ in predictions]
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):
       continue
@@ -68,11 +68,13 @@ def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
     pid = df['player_id'][flt]
     pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
     results_for_day = dict(itertools.izip(pid, df['fantasy_pts'][flt]))
-    results = [Emulate(players_list, pd, results_for_day, print_selections=print_selections)
-               for pd in pred_for_day]
+    results = [Emulate(players_list, pred, results_for_day, print_selections=print_selections)
+               for pred in pred_for_day]
+    for r, allr in zip(results, all_results):
+      allr.append(r)
     print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
 
-  print knapsack.T
+  PrintComparison(all_results)
 
 
 def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
@@ -111,7 +113,11 @@ def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
   print 'Test:', expr_test
   print 'Base\t\tTest\t\tDraw'
   print '%d\t\t%d\t\t(%d):' % (wins, losses, len(scores_base) - wins - losses)
-  res_base = pd.Series(scores_base)
-  res_test = pd.Series(scores_test)
-  print '%.1f\t\t%.1f        median' % (res_base.median(), res_test.median())
-  print '%.1f\t\t%.1f        mean' % (res_base.mean(), res_test.mean())
+  PrintComparison([scores_base, scores_test])
+
+
+def PrintComparison(infos):
+  """Each element of infos is a list of results for one prediction."""
+  series_infos = [pd.Series(i) for i in infos]
+  print '\t\t'.join('%.1f' % x.median() for x in series_infos) + '\t\tmedian'
+  print '\t\t'.join('%.1f' % x.mean() for x in series_infos) + '\t\tmean'
