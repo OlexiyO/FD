@@ -4,9 +4,9 @@ import itertools
 import pandas as pd
 
 from analysis import knapsack
-from analysis.player_info import Position, PlayerStatus, PlayerInfo, NormalizeName
+from analysis.player_info import Position, PlayerStatus, PlayerInfo
 from crawl.fanduel_parser import ParseFDFile
-from crawl.player_ids import FD_DIR, GetPlayerPosition, GetPlayerIdFromFDId
+from crawl.player_ids import FD_DIR, GetPlayerPosition
 
 
 def Emulate(fd_data, player_predictions, player_results,
@@ -47,10 +47,7 @@ DF_15 = None
 
 
 def FDFromFile(filepath):
-  return [
-    PlayerInfo(position=v[0], name=NormalizeName(v[1]), salary=int(v[5]), health=v[-3],
-               status=v[-1], pts=None, pid=GetPlayerIdFromFDId(fd_id))
-    for fd_id, v in ParseFDFile(filepath).iteritems()]
+  return ParseFDFile(filepath)[0]
 
 
 def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
@@ -121,3 +118,25 @@ def PrintComparison(infos):
   series_infos = [pd.Series(i) for i in infos]
   print '\t\t'.join('%.1f' % x.median() for x in series_infos) + '\t\tmedian'
   print '\t\t'.join('%.1f' % x.mean() for x in series_infos) + '\t\tmean'
+
+
+def PredictTomorrow(df, fname, expr):
+  date_need = fname[:10].replace('_', '')
+  flt = (df['date_id'] == float(date_need))
+  df = df[flt]
+  players_list = FDFromFile(os.path.join(FD_DIR, fname))
+
+  pid = df['player_id']
+  prediction = expr.Eval(df)
+  player_predictions = dict(itertools.izip(pid, prediction[flt]))
+
+  players_out = ['jacksre01',  # not good enough after Durant is back
+                 'wroteto01'  # too risky to be injured
+  ]
+  updated_data = [
+    pi.Override(pts=player_predictions.get(pi.pid, 0))
+    for pi in players_list
+    if pi.status != PlayerStatus.OUT and pi.pid not in players_out]
+  best = knapsack.BestChoice(updated_data, Position.FD_REQUEST, 60000)
+  for b in best:
+    print b, player_predictions[b.pid]

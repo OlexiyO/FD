@@ -1,8 +1,6 @@
 import os
 
-from analysis import load
 from analysis.player_info import NormalizeName
-from crawl import fanduel_parser
 
 
 IDS_MAPPING_PATH = 'C:/Coding/FanDuel/fd_html/ids_mapping'
@@ -27,7 +25,7 @@ def GetPlayerIdFromFDId(fd_id):
   if FDID_TO_PID_MAPPING is None:
     with open(IDS_MAPPING_PATH) as fin:
       FDID_TO_PID_MAPPING = eval(fin.read())
-  return FDID_TO_PID_MAPPING.get(fd_id, None)
+  return FDID_TO_PID_MAPPING.get(fd_id)
 
 
 SPECIAL_NAMES = {
@@ -58,7 +56,9 @@ def AllFDData():
   for fname in os.listdir(FD_DIR):
     if not fname.endswith('.html'):
       continue
-    tmp = fanduel_parser.ParseFDFile(os.path.join(FD_DIR, fname))
+    from crawl import fanduel_parser
+
+    tmp = fanduel_parser.FDPlayersDictFromFile(os.path.join(FD_DIR, fname))
     for fdid, v in tmp.iteritems():
       yield fname, fdid, v
 
@@ -71,6 +71,7 @@ def CreateIds():
       assert fd_ids[name] == fdid
     fd_ids[name] = fdid
 
+  from analysis import load
   DF_14 = load.LoadDataForSeason(2014)
   DF_15 = load.LoadDataForSeason(2015)
   br_ids = {}
@@ -81,6 +82,7 @@ def CreateIds():
       if pname in br_ids and br_ids[pname] != pid:
         assert pid.startswith('mitchto0'), (pid, pname, br_ids[pname])
       br_ids[pname] = pid
+  br_ids['patrick christopher'] = 'chrispa01'
 
   fd_to_br = {fdid: br_ids[MapName(name)] for name, fdid in fd_ids.iteritems()
               if MapName(name) is not None}

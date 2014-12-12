@@ -6,6 +6,8 @@ import time
 import numpy as np
 import pandas as pd
 
+from crawl.fanduel_parser import ParseFDFile
+
 
 GAMES_PLAYED_FEATURE = 'games_played'
 BASIC_FIELDS = [
@@ -25,13 +27,50 @@ Field names:
       (averaging over their games)
 """
 
-def LoadDataForSeason(year):
+
+def DFForPrediction(extra_fd_file):
+  fname = os.path.basename(extra_fd_file)
+  date_id = fname[:10].replace('_', '')
+  player_infos, game_infos = ParseFDFile(extra_fd_file)
+  date, game_id, is_home, opponent, player, player_id, team = {}, {}, {}, {}, {}, {}, {}
+  for pinfo in player_infos:
+    pid = pinfo.pid
+    game_info = game_infos[pid]
+    host_team_id = game_info.team if game_info.is_home else game_info.opponent
+    cur_game_id = date_id + '0' + host_team_id
+    index = '%s:%s' % (pid, cur_game_id)
+    is_home[index] = game_info.is_home
+    team[index] = game_info.team
+    opponent[index] = game_info.opponent
+    game_id[index] = cur_game_id
+    date[index] = float(date_id)
+    player_id[index] = pid
+    player[index] = pinfo.name
+  return pd.DataFrame({
+    'date': date,
+    'game_id': game_id,
+    'is_home': is_home,
+    'opponent': opponent,
+    'team': team,
+    'player': player,
+    'player_id': player_id})
+
+
+def LoadDataForSeason(year, extra_fd_file=None):
   t0 = time.clock()
   DATA_DIR = 'C:/Coding/FanDuel/data/crawl/%d/csv/regular/' % year
   dfs = [pd.DataFrame.from_csv(os.path.join(DATA_DIR, fname))
          for fname in os.listdir(DATA_DIR)]
+  if extra_fd_file:
+    fd_df = DFForPrediction(extra_fd_file)
+    for cname in dfs[0].columns:
+      if cname not in fd_df.columns:
+        fd_df[cname] = 0
+    dfs.append(fd_df)
+
   print 'Loaded from disk:', time.clock() - t0
   DF = pd.concat(dfs)
+
   DF['date_id'] = DF['game_id'].map(lambda x: x[:8]).astype(int)
   AggregatePlayerPerGameFeatures(DF)
   AddRestFeaturesForPlayer(DF)
@@ -39,7 +78,7 @@ def LoadDataForSeason(year):
   AggregateTeamPerGameFeatures(DF)
   AddOtherFeatures(DF)
   AddSecondaryFeatures(DF)
-  if 'is_home' in DF.columns():
+  if 'is_home' in DF.columns:
     # TODO: Fix this during parsing.
     DF['is_home'] = DF['is_home'][DF['is_home']]
   print 'Processed:', time.clock() - t0
@@ -67,9 +106,11 @@ def AddSecondaryFeatures(df):
   df['team_off_poss'] = (
     df.team_fga + 0.4 * df.team_fta + df.team_tov +
     -1.07 * (df.team_orb / (df.team_orb + df.opp_drb)) * (df.team_fga - df.team_fg))
+  df['team_off_poss'].fillna(0., inplace=True)
   df['team_def_poss'] = (
     df.opp_fga + 0.4 * df.opp_fta + df.opp_tov +
     -1.07 * (df.opp_orb / (df.opp_orb + df.team_drb)) * (df.opp_fga - df.opp_fg))
+  df['team_def_poss'].fillna(0., inplace=True)
   df['team_poss'] = .5 * (df['team_def_poss'] + df['team_off_poss'])
 
   df['team_def_poss_per_game'] = AggregatePerGameForTeam(df, df['team_def_poss'])
