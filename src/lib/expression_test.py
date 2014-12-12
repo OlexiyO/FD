@@ -8,7 +8,7 @@ import numpy as np
 nan = np.nan
 from pandas.util import testing as pd_test
 
-from expression import *
+from lib.expression import *
 
 
 class ExpressionTest(TestCase):
