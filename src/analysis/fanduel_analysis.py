@@ -7,6 +7,8 @@ from analysis import knapsack
 from analysis.player_info import Position, PlayerStatus, PlayerInfo
 from crawl.fanduel_parser import ParseFDFile
 from crawl.player_ids import FD_DIR, GetPlayerPosition
+from lib import expression
+from lib.misc_functions import PrintRows
 
 
 def Emulate(fd_data, player_predictions, player_results,
@@ -51,7 +53,10 @@ def FDFromFile(filepath):
 
 
 def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
-                    only_positive_minutes=True):
+                    only_positive_minutes=True,
+                    expr_real_result=expression.Leaf('fantasy_pts')):
+  for i, p in enumerate(predictions):
+    print i + 1, p
   pred_series = [p.Eval(df) for p in predictions]
   all_results = [[] for _ in predictions]
   for fname in os.listdir(FD_DIR):
@@ -64,20 +69,27 @@ def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
     flt = df['date_id'] == int(date_need)
     pid = df['player_id'][flt]
     pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
-    results_for_day = dict(itertools.izip(pid, df['fantasy_pts'][flt]))
+    results_for_day = dict(itertools.izip(pid, expr_real_result.Eval(df)[flt]))
     results = [Emulate(players_list, pred, results_for_day, print_selections=print_selections)
                for pred in pred_for_day]
     for r, allr in zip(results, all_results):
       allr.append(r)
-    print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
+      # print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
 
   PrintComparison(all_results)
+  PrintRRTable(all_results)
 
 
-def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
+def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False,
+                        expr_real_result=expression.Leaf('fantasy_pts'),
+                        expr_salaries_from=expression.Leaf('fantasy_pts_per_game')):
   ser_base, ser_test = expr_base.Eval(df), expr_test.Eval(df)
   scores_base, scores_test = [], []
   gameday = 0
+  salary_cap = 60000 * expr_salaries_from.Eval(df).mean() / df['fantasy_pts_per_game'].mean()
+  min_salary = 3500 * expr_salaries_from.Eval(df).mean() / df['fantasy_pts_per_game'].mean()
+  min_salary = 100 * int(min_salary / 100)
+
   for date_id in sorted(set(df['date_id'])):
     gameday += 1
     if gameday < 10:
@@ -86,9 +98,9 @@ def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
     pids = df['player_id'][flt]
     pred_base = dict(itertools.izip(pids, ser_base[flt]))
     pred_test = dict(itertools.izip(pids, ser_test[flt]))
-    salaries = ((2.5 * df['fantasy_pts_per_game'][flt]).astype(int) * 100).map(lambda x: max(x, 3500))
+    salaries = ((2.5 * expr_salaries_from.Eval(df)[flt]).astype(int) * 100).map(lambda x: max(x, min_salary))
 
-    results_for_day = dict(itertools.izip(pids, df['fantasy_pts'][flt]))
+    results_for_day = dict(itertools.izip(pids, expr_real_result.Eval(df)[flt]))
     players_list = [
       PlayerInfo(position=GetPlayerPosition(pid), name=pid,
                  salary=sal, health=PlayerStatus.OK,
@@ -97,20 +109,38 @@ def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False):
       if GetPlayerPosition(pid) is not None]
     if not players_list:
       continue
-    sb = Emulate(players_list, pred_base, results_for_day, print_selections=False)
-    st = Emulate(players_list, pred_test, results_for_day, print_selections=False)
+    sb = Emulate(players_list, pred_base, results_for_day, print_selections=False,
+                 salary_cap=salary_cap)
+    st = Emulate(players_list, pred_test, results_for_day, print_selections=False,
+                 salary_cap=salary_cap)
     scores_base.append(sb)
     scores_test.append(st)
     if print_per_day:
       print str(date_id).ljust(15), '\t', '\t'.join('%.1f' % r for r in [sb, st])
 
-  wins = sum(1 for x, y in zip(scores_base, scores_test) if x > y + .10001)
-  losses = sum(1 for x, y in zip(scores_base, scores_test) if x < y - .10001)
   print 'Base:', expr_base
   print 'Test:', expr_test
   print 'Base\t\tTest\t\tDraw'
-  print '%d\t\t%d\t\t(%d):' % (wins, losses, len(scores_base) - wins - losses)
+  print '%d\t\t%d\t\t(%d):' % Score(scores_base, scores_test)
   PrintComparison([scores_base, scores_test])
+
+
+def PrintRRTable(all_results):
+  def CreateTable():
+    yield [''] + ['%d' % (i + 1) for i, _ in enumerate(all_results)]
+    for n, res in enumerate(all_results):
+      scores = ['%d : %d (%d)' % Score(res, rk) if k != n else '    XXX'
+                for k, rk in enumerate(all_results)]
+      yield ['%d' % (n + 1)] + scores
+
+  PrintRows(CreateTable())
+
+
+def Score(scores_base, scores_test):
+  assert len(scores_base) == len(scores_test)
+  wins = sum(1 for x, y in zip(scores_base, scores_test) if x > y + .10001)
+  losses = sum(1 for x, y in zip(scores_base, scores_test) if x < y - .10001)
+  return wins, losses, len(scores_base) - wins - losses
 
 
 def PrintComparison(infos):

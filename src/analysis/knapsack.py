@@ -46,7 +46,7 @@ def BestChoice(players, per_position_counts, salary_cap):
   ans = []
   eps = 1e-5
   r, c, s = 0, 0, S
-  print 'Predicted score:', best_pts
+  # print 'Predicted score:', best_pts
   if best_pts < 0:
     return None
   while r < N:

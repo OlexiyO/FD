@@ -19,3 +19,11 @@ expr6 = expr4 + ((.5 & Leaf('is_home')) | 0.)
 home_adjust_big = (1. & (Leaf('minutes_per_game') > 25) & Leaf('is_home'))
 home_adjust_small = (.5 & Leaf('is_home'))
 expr7 = expr4 + (home_adjust_big | home_adjust_small | 0)
+
+off_part = Leaf('pts_per_game') + 1.5 * Leaf('ast_per_game')
+off_part *= Leaf('other_def_rating_per_game') / 1.041
+other_part = 1.2 * Leaf('trb_per_game')
+other_part += 2. * (Leaf('blk_per_game') + Leaf('stl_per_game'))
+other_part -= Leaf('tov_per_game')
+cumulative_score = (off_part + other_part) * tempo_mult
+cumulative_score_with_home = cumulative_score + ((.5 & Leaf('is_home')) | 0.)

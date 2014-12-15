@@ -25,3 +25,10 @@ def PrintData(*args, **kwargs):
     for vals in itertools.izip(*data):
       print '\t'.join('%s' % s for s in vals)
 
+
+def PrintRows(rows):
+  rows = list(rows)
+  max_wid = [max(map(len, y)) for y in zip(*rows)]
+  for r in rows:
+    print '\t'.join('%-*s' % ((max_wid[i],) + (col, ))
+                    for i, col in enumerate(r))

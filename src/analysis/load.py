@@ -118,6 +118,11 @@ def AddSecondaryFeatures(df):
   df['team_poss_per_game'] = .5 * (df['team_def_poss_per_game'] + df['team_off_poss_per_game'])
   df['other_poss_per_game'] = MirrorFeatureForOpponent(df, 'team_poss_per_game')
 
+  df['off_rating_per_game'] = df.team_pts_per_game / df.team_poss_per_game
+  df['other_off_rating_per_game'] = MirrorFeatureForOpponent(df, 'off_rating_per_game')
+  df['def_rating_per_game'] = df.opp_pts_per_game / df.team_poss_per_game
+  df['other_def_rating_per_game'] = MirrorFeatureForOpponent(df, 'def_rating_per_game')
+
 
 def MirrorFeatureForOpponent(df, fname_from):
   """For example, before SAS vs MIA game:
