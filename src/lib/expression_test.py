@@ -3,12 +3,12 @@ from unittest import TestCase
 
 import pandas as pd
 import numpy as np
-
-
-nan = np.nan
 from pandas.util import testing as pd_test
 
 from lib.expression import *
+
+
+nan = np.nan
 
 
 class ExpressionTest(TestCase):

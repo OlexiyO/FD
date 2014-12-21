@@ -52,20 +52,21 @@ def FDFromFile(filepath):
   return ParseFDFile(filepath)[0]
 
 
-def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
-                    only_positive_minutes=True,
-                    expr_real_result=expression.Leaf('fantasy_pts')):
+ENOUGH_DATA = (expression.Leaf('minutes') >= 10) & (expression.Leaf('minutes_per_game') >= 10)
+
+
+def _CheckFDGames(fd_games_generator, predictions, df, print_selections=False,
+                  df_filter=ENOUGH_DATA, only_healthy=True,
+                  expr_real_result=expression.Leaf('fantasy_pts'),
+):
+  df = df_filter.Filter(df)
   for i, p in enumerate(predictions):
     print i + 1, p
   pred_series = [p.Eval(df) for p in predictions]
   all_results = [[] for _ in predictions]
-  for fname in os.listdir(FD_DIR):
-    if not fname.endswith('.html'):
-      continue
-    players_list = FDFromFile(os.path.join(FD_DIR, fname))
+  for date_need, players_list in fd_games_generator:
     if only_healthy:
       players_list = [p for p in players_list if p.status == PlayerStatus.OK]
-    date_need = fname[:10].replace('_', '')
     flt = df['date_id'] == int(date_need)
     pid = df['player_id'][flt]
     pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
@@ -80,49 +81,51 @@ def CheckAllFDGames(predictions, df, only_healthy=True, print_selections=False,
   PrintRRTable(all_results)
 
 
-def CheckVirtualFDGames(expr_base, expr_test, df, print_per_day=False,
-                        expr_real_result=expression.Leaf('fantasy_pts'),
-                        expr_salaries_from=expression.Leaf('fantasy_pts_per_game')):
-  ser_base, ser_test = expr_base.Eval(df), expr_test.Eval(df)
-  scores_base, scores_test = [], []
-  gameday = 0
-  salary_cap = 60000 * expr_salaries_from.Eval(df).mean() / df['fantasy_pts_per_game'].mean()
-  min_salary = 3500 * expr_salaries_from.Eval(df).mean() / df['fantasy_pts_per_game'].mean()
-  min_salary = 100 * int(min_salary / 100)
+def _FDGamesGenerator(fd_dir):
+  for fname in os.listdir(fd_dir):
+    if not fname.endswith('.html'):
+      continue
+    players_list = FDFromFile(os.path.join(FD_DIR, fname))
+    date_need = fname[:10].replace('_', '')
+    yield date_need, players_list
 
+
+def CheckAllFDGames(predictions, df, print_selections=False,
+                    df_filter=ENOUGH_DATA, only_healthy=True,
+                    expr_real_result=expression.Leaf('fantasy_pts')):
+  _CheckFDGames(_FDGamesGenerator(FD_DIR), predictions, df, print_selections=print_selections,
+                df_filter=df_filter, only_healthy=only_healthy, expr_real_result=expr_real_result)
+
+
+def _VirtualGamesGenerator(df, expr_salaries_from, gameday_cutoff=10):
+  gameday = 0
+  min_salary = 3500
+  salaries_eval = expr_salaries_from.Eval(df)
+  salary_mult = df['fantasy_pts_per_game'].mean() / salaries_eval.mean()
   for date_id in sorted(set(df['date_id'])):
     gameday += 1
-    if gameday < 10:
+    if gameday < gameday_cutoff:
       continue
     flt = df['date_id'] == date_id
     pids = df['player_id'][flt]
-    pred_base = dict(itertools.izip(pids, ser_base[flt]))
-    pred_test = dict(itertools.izip(pids, ser_test[flt]))
-    salaries = ((2.5 * expr_salaries_from.Eval(df)[flt]).astype(int) * 100).map(lambda x: max(x, min_salary))
-
-    results_for_day = dict(itertools.izip(pids, expr_real_result.Eval(df)[flt]))
+    salaries = ((2.5 * salaries_eval[flt] * salary_mult).astype(int) * 100).map(lambda x: max(x, min_salary))
     players_list = [
       PlayerInfo(position=GetPlayerPosition(pid), name=pid,
                  salary=sal, health=PlayerStatus.OK,
                  status=PlayerStatus.OK, pts=None, pid=pid)
       for pid, sal in zip(pids, salaries)
       if GetPlayerPosition(pid) is not None]
-    if not players_list:
-      continue
-    sb = Emulate(players_list, pred_base, results_for_day, print_selections=False,
-                 salary_cap=salary_cap)
-    st = Emulate(players_list, pred_test, results_for_day, print_selections=False,
-                 salary_cap=salary_cap)
-    scores_base.append(sb)
-    scores_test.append(st)
-    if print_per_day:
-      print str(date_id).ljust(15), '\t', '\t'.join('%.1f' % r for r in [sb, st])
+    if players_list:
+      yield date_id, players_list
 
-  print 'Base:', expr_base
-  print 'Test:', expr_test
-  print 'Base\t\tTest\t\tDraw'
-  print '%d\t\t%d\t\t(%d):' % Score(scores_base, scores_test)
-  PrintComparison([scores_base, scores_test])
+
+def CheckVirtualFDGames(predictions, df, print_selections=False,
+                        df_filter=ENOUGH_DATA, only_healthy=True,
+                        expr_real_result=expression.Leaf('fantasy_pts'),
+                        expr_salaries_from=expression.Leaf('fantasy_pts_per_game')):
+  _CheckFDGames(_VirtualGamesGenerator(df, expr_salaries_from),
+                predictions, df, print_selections=print_selections,
+                df_filter=df_filter, only_healthy=only_healthy, expr_real_result=expr_real_result)
 
 
 def PrintRRTable(all_results):

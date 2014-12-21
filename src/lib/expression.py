@@ -24,6 +24,9 @@ class AbstractExpression(object):
   def Eval(self, df):
     raise NotImplementedError
 
+  def Filter(self, df):
+    return df[~self.Eval(df).isnull()]
+
   def __add__(self, other):
     return BinaryDFMethod('add', self, other)
 

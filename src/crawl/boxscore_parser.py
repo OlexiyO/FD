@@ -112,6 +112,8 @@ def HtmlToCsv(in_dir, out_dir, fname, with_advanced_stats=False):
   game_id = fname[:-5]  # Drop .html
   home_team = game_id[-3:].upper()
   ymd = game_id[:8]
+  if not os.path.isdir(out_dir):
+    os.makedirs(out_dir)
   with open(filepath) as fin:
     soup = BeautifulSoup(fin)
   player_href = lambda s: s.startswith('/players/') and s.endswith('html')

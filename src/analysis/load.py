@@ -259,3 +259,11 @@ def GameDate(game_id):
 
 def FirstGameEarlier(game_id1, game_id2):
   return GameDate(game_id1) < GameDate(game_id2)
+
+
+'''
+fname = '2014_12_15.html'
+FD_DIR = 'C:/Coding/FanDuel/fd_html'
+fd_path = os.path.join(FD_DIR, fname)
+DF_15 = LoadDataForSeason(2015, fd_path)
+'''
