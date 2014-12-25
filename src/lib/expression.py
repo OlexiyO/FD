@@ -159,3 +159,11 @@ class Const(AbstractExpression):
 
   def Eval(self, df):
     return pd.Series(self._value, index=df.index)
+
+
+def LeafOrExpr(x):
+  if isinstance(x, AbstractExpression):
+    return x
+  if not isinstance(x, basestring):
+    raise TypeError('%s %s' % (type(x), x))
+  return Leaf(x)

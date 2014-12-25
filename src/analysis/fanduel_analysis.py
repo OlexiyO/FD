@@ -62,7 +62,7 @@ def _CheckFDGames(fd_games_generator, predictions, df, print_selections=False,
   df = df_filter.Filter(df)
   for i, p in enumerate(predictions):
     print i + 1, p
-  pred_series = [p.Eval(df) for p in predictions]
+  pred_series = [expression.LeafOrExpr(p).Eval(df) for p in predictions]
   all_results = [[] for _ in predictions]
   for date_need, players_list in fd_games_generator:
     if only_healthy:
