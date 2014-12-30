@@ -51,12 +51,44 @@ class LoadTest(TestCase):
       'gru:20141004pho,4,4,4,20141004pho,pho,10',
     ]))
     test_df = pd.DataFrame.from_csv(sio)
-    load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'])
+    load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
+                                        aggregator=load.Mean,
+                                        suffix='per_game')
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,minutes,games_played,pts_per_game,trb_per_game',
       'ole:20141003sas,13,5,3,20141003sas,sas,10,1,24,15',
       'gru:20141006pho,12,5,3,20141006pho,pho,10,1,4,4',
       'ole:20141006pho,1,4,0,20141006pho,sas,10,2,18.5,10',
+      'val:20141001sas,7,5,2,20141001sas,sas,10,0,0,0',
+      'ole:20141001sas,24,15,13,20141001sas,sas,10,0,0,0',
+      'gru:20141004pho,4,4,4,20141004pho,pho,10,0,0,0',
+    ]))
+    expected = pd.DataFrame.from_csv(expected_sio)
+    load.PrepareDF(expected)
+    print expected
+    print
+    print test_df
+    pd.util.testing.assert_frame_equal(test_df, expected, check_index_type=True)
+
+  def testAddPlayerPerGameFeaturesLastValue(self):
+    sio = StringIO.StringIO('\n'.join([
+      ',pts,trb,ast,game_id,team,minutes',
+      'ole:20141003sas,13,5,3,20141003sas,sas,10',
+      'gru:20141006pho,12,5,3,20141006pho,pho,10',
+      'ole:20141006pho,1,4,0,20141006pho,sas,10',
+      'val:20141001sas,7,5,2,20141001sas,sas,10',
+      'ole:20141001sas,24,15,13,20141001sas,sas,10',
+      'gru:20141004pho,4,4,4,20141004pho,pho,10',
+    ]))
+    test_df = pd.DataFrame.from_csv(sio)
+    load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
+                                        aggregator=lambda d: ([0] + d)[-1],
+                                        suffix='last')
+    expected_sio = StringIO.StringIO('\n'.join([
+      ',pts,trb,ast,game_id,team,minutes,games_played,pts_last,trb_last',
+      'ole:20141003sas,13,5,3,20141003sas,sas,10,1,24,15',
+      'gru:20141006pho,12,5,3,20141006pho,pho,10,1,4,4',
+      'ole:20141006pho,1,4,0,20141006pho,sas,10,2,13,5',
       'val:20141001sas,7,5,2,20141001sas,sas,10,0,0,0',
       'ole:20141001sas,24,15,13,20141001sas,sas,10,0,0,0',
       'gru:20141004pho,4,4,4,20141004pho,pho,10,0,0,0',
@@ -79,12 +111,43 @@ class LoadTest(TestCase):
       'gru:20141004pho,4,4,4,20141004pho,pho',
     ]))
     test_df = pd.DataFrame.from_csv(sio)
-    load.AggregateTeamPerGameFeatures(test_df, ['team_pts', 'team_trb'])
+    load.AggregateTeamPerGameFeatures(test_df, ['team_pts', 'team_trb'],
+                                      aggregators={'per_game': load.Mean})
     expected_sio = StringIO.StringIO('\n'.join([
       ',team_pts,team_trb,team_ast,game_id,team,team_games_played,team_pts_per_game,team_trb_per_game',
       'ole:20141003sas,12,5,3,20141003sas,sas,1,7,5',
       'gru:20141006pho,12,5,3,20141006pho,pho,1,4,4',
       'ole:20141006pho,1,4,0,20141006pho,sas,2,9.5,5',
+      'val:20141001sas,7,5,2,20141001sas,sas,0,0,0',
+      'ole:20141001sas,7,5,13,20141001sas,sas,0,0,0',
+      'gru:20141004pho,4,4,4,20141004pho,pho,0,0,0',
+    ]))
+    expected = pd.DataFrame.from_csv(expected_sio)
+    load.PrepareDF(expected)
+    print expected
+    print
+    print test_df
+    pd.util.testing.assert_frame_equal(test_df, expected, check_index_type=True)
+
+
+  def testAddTeamLastFeatures(self):
+    sio = StringIO.StringIO('\n'.join([
+      ',team_pts,team_trb,team_ast,game_id,team',
+      'ole:20141003sas,12,5,3,20141003sas,sas',
+      'gru:20141006pho,12,5,3,20141006pho,pho',
+      'ole:20141006pho,1,4,0,20141006pho,sas',
+      'val:20141001sas,7,5,2,20141001sas,sas',
+      'ole:20141001sas,7,5,13,20141001sas,sas',
+      'gru:20141004pho,4,4,4,20141004pho,pho',
+    ]))
+    test_df = pd.DataFrame.from_csv(sio)
+    load.AggregateTeamPerGameFeatures(test_df, ['team_pts', 'team_trb'],
+                                      aggregators={'last': (lambda d: ([0] + d)[-1])})
+    expected_sio = StringIO.StringIO('\n'.join([
+      ',team_pts,team_trb,team_ast,game_id,team,team_games_played,team_pts_last,team_trb_last',
+      'ole:20141003sas,12,5,3,20141003sas,sas,1,7,5',
+      'gru:20141006pho,12,5,3,20141006pho,pho,1,4,4',
+      'ole:20141006pho,1,4,0,20141006pho,sas,2,12,5',
       'val:20141001sas,7,5,2,20141001sas,sas,0,0,0',
       'ole:20141001sas,7,5,13,20141001sas,sas,0,0,0',
       'gru:20141004pho,4,4,4,20141004pho,pho,0,0,0',

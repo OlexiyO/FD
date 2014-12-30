@@ -56,6 +56,22 @@ def DFForPrediction(extra_fd_file):
     'player_id': player_id})
 
 
+def Mean(data):
+  if data:
+    return float(sum(data)) / len(data)
+  else:
+    return 0
+
+
+def MeanLast10(data):
+  if data:
+    count = min(len(data), 10)
+    return sum(data[-count:]) / float(count)
+  else:
+    return 0
+
+
+
 def LoadDataForSeason(year, extra_fd_file=None):
   t0 = time.clock()
   DATA_DIR = 'C:/Coding/FanDuel/data/crawl/%d/csv/regular/' % year
@@ -72,10 +88,11 @@ def LoadDataForSeason(year, extra_fd_file=None):
   DF = pd.concat(dfs)
 
   DF['date_id'] = DF['game_id'].map(lambda x: x[:8]).astype(int)
-  AggregatePlayerPerGameFeatures(DF)
+  AggregatePlayerPerGameFeatures(DF, aggregator=Mean, suffix='per_game')
+  AggregatePlayerPerGameFeatures(DF, aggregator=MeanLast10, suffix='last_10')
   AddRestFeaturesForPlayer(DF)
   AddOpponentFeatures(DF)
-  AggregateTeamPerGameFeatures(DF)
+  AggregateTeamPerGameFeatures(DF, aggregators={'per_game': Mean, 'last_10': MeanLast10})
   AddOtherFeatures(DF)
   AddSecondaryFeatures(DF)
   if 'is_home' in DF.columns:
@@ -162,25 +179,26 @@ def AddOtherFeatures(df, fields_from=None, fields_to=None):
     df[fname_to] = MirrorFeatureForOpponent(df, fname_from)
 
 
-def AggregateTeamPerGameFeatures(df, fields=None):
+def AggregateTeamPerGameFeatures(df, fields=None, aggregators=None):
+  assert aggregators
   PrepareDF(df)
   if fields is None:
     fields = list(set(BASIC_FIELDS) - {'minutes', 'plus_minus'})
     fields = ['team_%s' % name for name in fields] + ['opp_%s' % name for name in fields]
 
   df['team_%s' % GAMES_PLAYED_FEATURE] = AggregatePerGameForTeam(
-    df, pd.Series(1., index=df.index),
-    per_game_feature=pd.Series(1., index=df.index))
+    df, pd.Series(1., index=df.index), aggregator=len)
+
   for fname in fields:
-    df['%s_per_game' % fname] = AggregatePerGameForTeam(df, df[fname])
+    for suffix, func in aggregators.iteritems():
+      df['%s_%s' % (fname, suffix)] = AggregatePerGameForTeam(df, df[fname], aggregator=func)
 
 
-def AggregatePerGameForTeam(df, orig_feature, per_game_feature=None):
-  """Returns "per_game" feature from orig_feature."""
-  if per_game_feature is None:
-    per_game_feature = df['team_%s' % GAMES_PLAYED_FEATURE]
-
-  agg_data = Counter()
+def AggregatePerGameForTeam(df, orig_feature, aggregator=Mean):
+  """Returns "per_game" feature from orig_feature.
+  :param suffix:
+  """
+  agg_data = {}
   games_for_team = {}
   res = pd.Series(0., index=df.index)
   for index, series in df.iterrows():
@@ -189,10 +207,12 @@ def AggregatePerGameForTeam(df, orig_feature, per_game_feature=None):
     previous_games = games_for_team.setdefault(team_id, set())
     if game_id not in previous_games:
       previous_games.add(game_id)
-      agg_data[team_id] += orig_feature[index]
+      if team_id not in agg_data:
+        agg_data[team_id] = [orig_feature[index]]
+      else:
+        agg_data[team_id].append(orig_feature[index])
 
-    games_count = per_game_feature[index]
-    res[index] = (agg_data[team_id] - orig_feature[index]) / games_count if games_count else 0
+    res[index] = aggregator(agg_data[team_id][:-1])
   return res
 
 
@@ -224,7 +244,9 @@ def AddRestFeaturesForPlayer(df):
   df['player_previous_minutes'] = prev_game_mp
 
 
-def AggregatePlayerPerGameFeatures(df, fields=None):
+def AggregatePlayerPerGameFeatures(df, fields=None, aggregator=None, suffix=None):
+  assert aggregator
+  assert suffix
   PrepareDF(df)
   if fields is None:
     fields = BASIC_FIELDS
@@ -237,19 +259,19 @@ def AggregatePlayerPerGameFeatures(df, fields=None):
     player_id, game_id = index.split(':')
     player_data = agg_data.get(player_id)
     if player_data is None:
-      player_data = {x: 0. for x in fields}
+      player_data = {x: [] for x in fields}
     games_count = float(games_played[player_id])
     extra_df[GAMES_PLAYED_FEATURE][index] = games_count
     for fname in fields:
-      extra_df[fname][index] = player_data[fname] / games_count if games_count else 0
-      player_data[fname] += series[fname]
-    if series['minutes'] >= .1:
+      extra_df[fname][index] = aggregator(player_data[fname])
+      player_data[fname].append(series[fname])
+    if series['minutes'] >= .5:
       games_played[player_id] += 1
     agg_data[player_id] = player_data
 
   df[GAMES_PLAYED_FEATURE] = extra_df[GAMES_PLAYED_FEATURE]
   for fname in fields:
-    df['%s_per_game' % fname] = extra_df[fname]
+    df['%s_%s' % (fname, suffix)] = extra_df[fname]
 
 
 def GameDate(game_id):
