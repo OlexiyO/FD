@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+
 
 OPERS = {
   'add': '+',
@@ -6,7 +8,6 @@ OPERS = {
   'mul': '*',
   'div': '/',
   'fillna': '|',
-
 }
 
 __all__ = ['AbstractExpression', 'Leaf', 'BinaryDFMethod']
@@ -124,6 +125,19 @@ class Func(AbstractExpression):
     return '(%s)' % self._printout(*[a.Expr() for a in self._args])
 
 
+class UnaryOperator(AbstractExpression):
+  def __init__(self, operation, argument):
+    self._operation = operation
+    self._argument = CreateConst(argument)
+
+  def Eval(self, df):
+    return self._operation(self._argument.Eval(df))
+
+  def Expr(self):
+    name = self._operation.__name__
+    return '%s(%s)' % (name, self._argument.Expr())
+
+
 class BinaryDFMethod(AbstractExpression):
   def __init__(self, what, a, b):
     self._oper = what
@@ -164,6 +178,17 @@ class Const(AbstractExpression):
 def LeafOrExpr(x):
   if isinstance(x, AbstractExpression):
     return x
-  if not isinstance(x, basestring):
+  elif isinstance(x, basestring):
+    return Leaf(x)
+  else:
     raise TypeError('%s %s' % (type(x), x))
-  return Leaf(x)
+
+
+class EOperators(object):
+  @staticmethod
+  def Log(x):
+    return UnaryOperator(np.log, x)
+
+  @staticmethod
+  def Exp(x):
+    return UnaryOperator(np.exp, x)

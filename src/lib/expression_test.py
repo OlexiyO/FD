@@ -6,6 +6,7 @@ import numpy as np
 from pandas.util import testing as pd_test
 
 from lib.expression import *
+from lib.expression import EOperators as E
 
 
 nan = np.nan
@@ -18,6 +19,8 @@ class ExpressionTest(TestCase):
     self.assertEqual('(x + y)', (Leaf('x') + Leaf('y')).Expr())
     self.assertEqual('(x & y)', (Leaf('x') & Leaf('y')).Expr())
     self.assertEqual('(x | 1.0)', (Leaf('x') | 1).Expr())
+    self.assertEqual('log(x)', E.Log(Leaf('x')).Expr())
+    self.assertEqual('log((x & y))', E.Log(Leaf('x') & Leaf('y')).Expr())
 
   def testEval(self):
     sio = StringIO.StringIO('\n'.join([
@@ -123,3 +126,14 @@ class ExpressionTest(TestCase):
     pd_test.assert_series_equal(
       pd.Series([nan, 1, nan, 1, nan, 1]),
       (2. == Leaf('z')).Eval(df))
+
+  def testLogExp(self):
+    df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
+                       'y': [1, nan, 2, nan, 4, nan]})
+    pd_test.assert_series_equal(pd.Series([0.] * 6), E.Log(1.).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([-np.inf, 0, nan, np.log(2.), np.log(3.), nan]),
+      E.Log(Leaf('x')).Eval(df))
+    pd_test.assert_series_equal(
+      pd.Series([0., 1., nan, 2., 3., nan]),
+      E.Exp(E.Log(Leaf('x'))).Eval(df))
