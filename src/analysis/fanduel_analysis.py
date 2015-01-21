@@ -52,13 +52,15 @@ def FDFromFile(filepath):
   return ParseFDFile(filepath)[0]
 
 
-ENOUGH_DATA = (expression.Leaf('minutes') >= 10) & (expression.Leaf('minutes_per_game') >= 10)
+ENOUGH_DATA = (
+  (expression.Leaf('minutes') >= 10) &
+  (expression.Leaf('minutes_per_game') >= 10) &
+  (expression.Leaf('games_played') >= 10))
 
 
-def _CheckFDGames(fd_games_generator, predictions, df, print_selections=False,
-                  df_filter=ENOUGH_DATA, only_healthy=True,
-                  expr_real_result=expression.Leaf('fantasy_pts'),
-):
+def _CheckFDGames(fd_games_generator, predictions, df, requests,
+                  print_selections=False, df_filter=ENOUGH_DATA, only_healthy=True,
+                  expr_real_result=expression.Leaf('fantasy_pts')):
   df = df_filter.Filter(df)
   for i, p in enumerate(predictions):
     print i + 1, p
@@ -71,7 +73,9 @@ def _CheckFDGames(fd_games_generator, predictions, df, print_selections=False,
     pid = df['player_id'][flt]
     pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
     results_for_day = dict(itertools.izip(pid, expr_real_result.Eval(df)[flt]))
-    results = [Emulate(players_list, pred, results_for_day, print_selections=print_selections)
+    results = [Emulate(players_list, pred, results_for_day,
+                       print_selections=print_selections,
+                       requests=requests)
                for pred in pred_for_day]
     for r, allr in zip(results, all_results):
       allr.append(r)
@@ -90,22 +94,20 @@ def _FDGamesGenerator(fd_dir):
     yield date_need, players_list
 
 
-def CheckAllFDGames(predictions, df, print_selections=False,
+def CheckAllFDGames(predictions, df, requests=Position.FD_REQUEST,
+                    print_selections=False,
                     df_filter=ENOUGH_DATA, only_healthy=True,
                     expr_real_result=expression.Leaf('fantasy_pts')):
-  _CheckFDGames(_FDGamesGenerator(FD_DIR), predictions, df, print_selections=print_selections,
+  _CheckFDGames(_FDGamesGenerator(FD_DIR), predictions, df, requests,
+                print_selections=print_selections,
                 df_filter=df_filter, only_healthy=only_healthy, expr_real_result=expr_real_result)
 
 
-def _VirtualGamesGenerator(df, expr_salaries_from, gameday_cutoff=10):
-  gameday = 0
+def _VirtualGamesGenerator(df, expr_salaries_from):
   min_salary = 3500
   salaries_eval = expr_salaries_from.Eval(df)
   salary_mult = df['fantasy_pts_per_game'].mean() / salaries_eval.mean()
   for date_id in sorted(set(df['date_id'])):
-    gameday += 1
-    if gameday < gameday_cutoff:
-      continue
     flt = df['date_id'] == date_id
     pids = df['player_id'][flt]
     salaries = ((2.5 * salaries_eval[flt] * salary_mult).astype(int) * 100).map(lambda x: max(x, min_salary))
@@ -119,12 +121,14 @@ def _VirtualGamesGenerator(df, expr_salaries_from, gameday_cutoff=10):
       yield date_id, players_list
 
 
-def CheckVirtualFDGames(predictions, df, print_selections=False,
+def CheckVirtualFDGames(predictions, df, requests=Position.FD_REQUEST,
+                        print_selections=False,
                         df_filter=ENOUGH_DATA, only_healthy=True,
                         expr_real_result=expression.Leaf('fantasy_pts'),
                         expr_salaries_from=expression.Leaf('fantasy_pts_per_game')):
   _CheckFDGames(_VirtualGamesGenerator(df, expr_salaries_from),
-                predictions, df, print_selections=print_selections,
+                predictions, df, requests,
+                print_selections=print_selections,
                 df_filter=df_filter, only_healthy=only_healthy, expr_real_result=expr_real_result)
 
 

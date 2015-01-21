@@ -14,10 +14,8 @@ class Position(object):
   SF = 'SF'
   PF = 'PF'
   C = 'C'
-
-
-Position.ALL = [Position.C, Position.PF, Position.PG, Position.SF, Position.SG]
-Position.FD_REQUEST = {Position.C: 1, Position.SG: 2, Position.SF: 2, Position.PF: 2, Position.PG: 2}
+  FD_REQUEST = {C: 1, SG: 2, SF: 2, PF: 2, PG: 2}
+  ALL = [C, PF, PG, SF, SG]
 
 
 class PlayerStatus(object):

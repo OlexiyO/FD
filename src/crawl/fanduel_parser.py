@@ -28,7 +28,7 @@ def FDPlayersDictFromFile(filepath):
         clean_line = clean_line.replace('false', 'False')
         clean_line = clean_line.replace('\\/', '/')
         return eval(clean_line)
-  assert False
+  assert False, filepath
 
 
 def ParseTeam(team_str):

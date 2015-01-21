@@ -3,6 +3,7 @@ from unittest import TestCase
 
 import pandas as pd
 
+from analysis import aggregation
 from analysis import load
 
 
@@ -52,7 +53,7 @@ class LoadTest(TestCase):
     ]))
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
-                                        aggregator=load.Mean,
+                                        aggregator=aggregation.Mean,
                                         suffix='per_game')
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,minutes,games_played,pts_per_game,trb_per_game',
@@ -82,7 +83,7 @@ class LoadTest(TestCase):
     ]))
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
-                                        aggregator=lambda d: ([0] + d)[-1],
+                                        aggregator=aggregation.LastOne,
                                         suffix='last')
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,minutes,games_played,pts_last,trb_last',
@@ -112,7 +113,7 @@ class LoadTest(TestCase):
     ]))
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregateTeamPerGameFeatures(test_df, ['team_pts', 'team_trb'],
-                                      aggregators={'per_game': load.Mean})
+                                      aggregators={'per_game': aggregation.Mean})
     expected_sio = StringIO.StringIO('\n'.join([
       ',team_pts,team_trb,team_ast,game_id,team,team_games_played,team_pts_per_game,team_trb_per_game',
       'ole:20141003sas,12,5,3,20141003sas,sas,1,7,5',
@@ -142,7 +143,7 @@ class LoadTest(TestCase):
     ]))
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregateTeamPerGameFeatures(test_df, ['team_pts', 'team_trb'],
-                                      aggregators={'last': (lambda d: ([0] + d)[-1])})
+                                      aggregators={'last': aggregation.LastOne})
     expected_sio = StringIO.StringIO('\n'.join([
       ',team_pts,team_trb,team_ast,game_id,team,team_games_played,team_pts_last,team_trb_last',
       'ole:20141003sas,12,5,3,20141003sas,sas,1,7,5',
