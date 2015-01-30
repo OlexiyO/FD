@@ -79,7 +79,7 @@ def _CheckFDGames(fd_games_generator, predictions, df, requests,
                for pred in pred_for_day]
     for r, allr in zip(results, all_results):
       allr.append(r)
-      # print fname[:-5].ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
+    print str(date_need).ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
 
   PrintComparison(all_results)
   PrintRRTable(all_results)
@@ -153,7 +153,9 @@ def Score(scores_base, scores_test):
 def PrintComparison(infos):
   """Each element of infos is a list of results for one prediction."""
   series_infos = [pd.Series(i) for i in infos]
+  print '\t\t'.join('%.1f' % x.quantile(.25) for x in series_infos) + '\t\t25%'
   print '\t\t'.join('%.1f' % x.median() for x in series_infos) + '\t\tmedian'
+  print '\t\t'.join('%.1f' % x.quantile(.75) for x in series_infos) + '\t\t75%'
   print '\t\t'.join('%.1f' % x.mean() for x in series_infos) + '\t\tmean'
 
 

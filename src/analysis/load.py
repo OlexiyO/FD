@@ -54,7 +54,8 @@ def DFForPrediction(extra_fd_file):
     'opponent': opponent,
     'team': team,
     'player': player,
-    'player_id': player_id})
+    'player_id': player_id,
+    'for_prediction': True})
 
 
 def LoadDataForSeason(year, extra_fd_file=None):
@@ -67,6 +68,8 @@ def LoadDataForSeason(year, extra_fd_file=None):
     for cname in dfs[0].columns:
       if cname not in fd_df.columns:
         fd_df[cname] = 0
+    for df in dfs:
+      df['for_prediction'] = False
     dfs.append(fd_df)
 
   print 'Loaded from disk:', time.clock() - t0
@@ -131,6 +134,7 @@ def AddSecondaryFeatures(df):
   df['other_off_rating_per_game'] = MirrorFeatureForOpponent(df, 'off_rating_per_game')
   df['def_rating_per_game'] = df.opp_pts_per_game / df.team_poss_per_game
   df['other_def_rating_per_game'] = MirrorFeatureForOpponent(df, 'def_rating_per_game')
+  df['other_pts_allowed_per_game'] = MirrorFeatureForOpponent(df, 'opp_pts_per_game')
 
 
 def MirrorFeatureForOpponent(df, fname_from):
@@ -243,7 +247,7 @@ def AggregatePlayerPerGameFeatures(df, fields=None, aggregator=None, suffix=None
                           data={s: 0. for s in fields + ['games_played']})
   games_played = Counter()
   for index, series in df.iterrows():
-    if series['minutes'] < .5:
+    if series['minutes'] < .5 and not series['for_prediction']:
       continue
     player_id, game_id = index.split(':')
     games_count = float(games_played[player_id])
@@ -264,11 +268,3 @@ def GameDate(game_id):
 
 def FirstGameEarlier(game_id1, game_id2):
   return GameDate(game_id1) < GameDate(game_id2)
-
-
-'''
-fname = '2014_12_15.html'
-FD_DIR = 'C:/Coding/FanDuel/fd_html'
-fd_path = os.path.join(FD_DIR, fname)
-DF_15 = LoadDataForSeason(2015, fd_path)
-'''

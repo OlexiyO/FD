@@ -192,3 +192,7 @@ class EOperators(object):
   @staticmethod
   def Exp(x):
     return UnaryOperator(np.exp, x)
+
+  @staticmethod
+  def Abs(x):
+    return UnaryOperator(np.abs, x)

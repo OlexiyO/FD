@@ -43,6 +43,8 @@ class ExpressionTest(TestCase):
     pd_test.assert_series_equal(2. / df.trb, (2. / Leaf('trb')).Eval(df))
     pd_test.assert_series_equal(df.trb / 2., (Leaf('trb') / 2).Eval(df))
 
+    pd_test.assert_series_equal(df.trb ** 2., (Leaf('trb') ** 2).Eval(df))
+
   def testAndOr(self):
     df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
                        'y': [1, nan, 2, nan, 4, nan],

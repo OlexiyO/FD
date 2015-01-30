@@ -1,4 +1,9 @@
 from lib.expression import *
+from lib import expression
+
+E = expression.EOperators
+from analysis import training
+
 
 golden = Leaf('fantasy_pts')
 expr1 = Leaf('fantasy_pts_per_game')
@@ -27,3 +32,17 @@ other_part += 2. * (Leaf('blk_per_game') + Leaf('stl_per_game'))
 other_part -= Leaf('tov_per_game')
 cumulative_score = (off_part + other_part) * tempo_mult
 cumulative_score_with_home = cumulative_score + ((.5 & Leaf('is_home')) | 0.)
+
+import numpy as np
+
+signals = [E.Log(tempo_mult),
+           Leaf('other_def_rating_per_game')]
+extra0 = training.BuildPWL(signals[0], [(-0.03, 0.96), (0.05, 1.019)])
+extra1 = training.BuildPWL(signals[1], [(0.95, 1.), (1.12, 1.13)])
+
+log = np.log
+extra0a = E.Exp(training.BuildPWL(signals[0],
+                                  [(-0.03, log(0.96)), (0.05, log(1.019))]))
+extra1a = E.Exp(training.BuildPWL(E.Log(signals[1]),
+                                  [(log(0.95), log(1.)), (log(1.12), log(1.13))]))
+scoring = extra0a * extra1a * Leaf('fantasy_pts_per_game')
