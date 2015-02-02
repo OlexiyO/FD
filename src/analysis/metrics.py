@@ -21,7 +21,7 @@ class DistanceMetric(object):
 
 class L1Metric(DistanceMetric):
   def Compute(self, df, prediction):
-    return 10. * (prediction.Eval(df) - self._golden_score.Eval(df)).abs().mean()
+    return (prediction.Eval(df) - self._golden_score.Eval(df)).abs().mean()
 
 
 def CompareOnDataSets(metric, dfs, predictions):

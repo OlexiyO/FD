@@ -1,6 +1,15 @@
 from matplotlib import pyplot as plt
 
-colors = 'bygr'
+# From http://colorbrewer2.org/
+COLORS = [
+  '#b3e2cd',
+  '#fdcdac',
+  '#cbd5e8',
+  '#f4cae4',
+  '#e6f5c9',
+  '#fff2ae',
+  '#f1e2cc',
+]
 
 
 def _Random5k(x, y):
@@ -12,7 +21,7 @@ def _Random5k(x, y):
 
 def ScatterPlot(x, *ys):
   plt.figure(figsize=(12, 8))
-  for y, c in zip(ys, colors):
+  for y, c in zip(ys, COLORS):
     x1, y1 = _Random5k(x, y)
     plt.scatter(x1, y1, c=c, marker='.', lw=0)
   plt.show()
@@ -20,7 +29,7 @@ def ScatterPlot(x, *ys):
 
 def LinePlot(x, *ys):
   plt.figure(figsize=(12, 8))
-  for y, c in zip(ys, colors):
+  for y, c in zip(ys, COLORS):
     x1, y1 = _Random5k(x, y)
     plt.plot(x1, y1, c=c)
   plt.show()
@@ -28,6 +37,6 @@ def LinePlot(x, *ys):
 
 def HistogramPlot(*ys):
   plt.figure(figsize=(12, 8))
-  for y, c in zip(ys, colors):
-    plt.hist(y, bins=20, c=c)
+  clrs = COLORS[:len(ys)]
+  plt.hist(ys, bins=20, color=clrs, edgecolor='white', histtype='bar')
   plt.show()

@@ -1,5 +1,7 @@
 from unittest import TestCase
 
+import numpy as np
+
 from analysis import aggregation
 
 
@@ -69,4 +71,22 @@ class AggregationTest(TestCase):
       x.update(50.)
     # Now: 10, 20, 0, 0, 0, 0, 30, 30, 30, 30, 40, 50, 50, 50, 50
     self.assertEqual(390. / 15., x.get())
+
+  def testAfterChange(self):
+    x = aggregation.AfterChange(5, 2)
+    self.assertTrue(np.isnan(x.get()))
+    x.update(0)
+    x.update(2)
+    x.update(1)
+    x.update(10)
+    self.assertTrue(np.isnan(x.get()))
+    x.update(8)
+    self.assertEqual(9, x.get())
+    x.update(0)
+    self.assertEqual(6, x.get())
+    x.update(0)
+    self.assertEqual(0, x.get())
+
+
+
 

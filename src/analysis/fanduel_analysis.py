@@ -2,13 +2,14 @@ import os
 import itertools
 
 import pandas as pd
+from lib import expression
 
 from analysis import knapsack
 from analysis.player_info import Position, PlayerStatus, PlayerInfo
 from crawl.fanduel_parser import ParseFDFile
 from crawl.player_ids import FD_DIR, GetPlayerPosition
-from lib import expression
 from lib.misc_functions import PrintRows
+from lib.plotting import HistogramPlot
 
 
 def Emulate(fd_data, player_predictions, player_results,
@@ -77,12 +78,15 @@ def _CheckFDGames(fd_games_generator, predictions, df, requests,
                        print_selections=print_selections,
                        requests=requests)
                for pred in pred_for_day]
+    if all(r < 30 for r in results):
+      continue
     for r, allr in zip(results, all_results):
       allr.append(r)
     print str(date_need).ljust(15), '\t', '\t'.join('%.1f' % r for r in results)
 
   PrintComparison(all_results)
   PrintRRTable(all_results)
+  HistogramPlot(*all_results)
 
 
 def _FDGamesGenerator(fd_dir):

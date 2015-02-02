@@ -1,9 +1,10 @@
 import cStringIO as StringIO
 from unittest import TestCase
+import math
 
 import pandas as pd
 import numpy as np
-from pandas.util import testing as pd_test
+from pandas.util.testing import assert_series_equal
 
 from lib.expression import *
 from lib.expression import EOperators as E
@@ -22,6 +23,22 @@ class ExpressionTest(TestCase):
     self.assertEqual('log(x)', E.Log(Leaf('x')).Expr())
     self.assertEqual('log((x & y))', E.Log(Leaf('x') & Leaf('y')).Expr())
 
+  def testEvalWithNan(self):
+    df = pd.DataFrame({'x': [0., 1., np.nan, np.nan],
+                       'y': [10., np.nan, 11., np.nan], })
+    assert_series_equal(pd.Series([10., np.nan, np.nan, np.nan]),
+                        (Leaf('x') + Leaf('y')).Eval(df))
+    assert_series_equal(pd.Series([0., np.nan, np.nan, np.nan]),
+                        (Leaf('x') * Leaf('y')).Eval(df))
+    assert_series_equal(pd.Series([0., np.nan, np.nan, np.nan]),
+                        (Leaf('x') / Leaf('y')).Eval(df))
+    assert_series_equal(pd.Series([float('inf'), np.nan, np.nan, np.nan]),
+                        (Leaf('y') / Leaf('x')).Eval(df))
+    assert_series_equal(pd.Series([1., math.exp(1.), np.nan, np.nan]),
+                        E.Exp(Leaf('x')).Eval(df))
+    assert_series_equal(pd.Series([np.nan, 0., np.nan, np.nan]),
+                        E.Log(Leaf('x')).Eval(df))
+
   def testEval(self):
     sio = StringIO.StringIO('\n'.join([
       ',pts,trb,team_ast,game_id,team',
@@ -33,57 +50,57 @@ class ExpressionTest(TestCase):
       'gru:20141004pho,4,4,4,20141004pho,pho',
     ]))
     df = pd.DataFrame.from_csv(sio)
-    pd_test.assert_series_equal(df.trb, Leaf('trb').Eval(df))
-    pd_test.assert_series_equal(2. * df.trb, (2. * Leaf('trb')).Eval(df))
-    pd_test.assert_series_equal(2. * df.trb, (Leaf('trb') * 2.).Eval(df))
-    pd_test.assert_series_equal(df.trb / df.pts, (Leaf('trb') / Leaf('pts')).Eval(df))
-    pd_test.assert_series_equal(df.trb - 1., (Leaf('trb') - 1.).Eval(df))
-    pd_test.assert_series_equal(1. - df.trb, (1. - Leaf('trb')).Eval(df))
-    pd_test.assert_series_equal(-df.trb.astype(float), (-Leaf('trb')).Eval(df))
-    pd_test.assert_series_equal(2. / df.trb, (2. / Leaf('trb')).Eval(df))
-    pd_test.assert_series_equal(df.trb / 2., (Leaf('trb') / 2).Eval(df))
+    assert_series_equal(df.trb, Leaf('trb').Eval(df))
+    assert_series_equal(2. * df.trb, (2. * Leaf('trb')).Eval(df))
+    assert_series_equal(2. * df.trb, (Leaf('trb') * 2.).Eval(df))
+    assert_series_equal(df.trb / df.pts, (Leaf('trb') / Leaf('pts')).Eval(df))
+    assert_series_equal(df.trb - 1., (Leaf('trb') - 1.).Eval(df))
+    assert_series_equal(1. - df.trb, (1. - Leaf('trb')).Eval(df))
+    assert_series_equal(-df.trb.astype(float), (-Leaf('trb')).Eval(df))
+    assert_series_equal(2. / df.trb, (2. / Leaf('trb')).Eval(df))
+    assert_series_equal(df.trb / 2., (Leaf('trb') / 2).Eval(df))
 
-    pd_test.assert_series_equal(df.trb ** 2., (Leaf('trb') ** 2).Eval(df))
+    assert_series_equal(df.trb ** 2., (Leaf('trb') ** 2).Eval(df))
 
   def testAndOr(self):
     df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
                        'y': [1, nan, 2, nan, 4, nan],
                        'z': [1., 2., 3., 2., 5., 2.],
                        'empty': [nan] * 6})
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([0, 1, 2, 2, 3, np.nan]),
       (Leaf('x') | Leaf('y')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1, nan, nan, nan, 7, nan]),
       (Leaf('x') + Leaf('y')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([0, nan, nan, nan, 3, nan]),
       (Leaf('x') & Leaf('y')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, 1, nan, nan, 1]),
       (~Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, 1, nan, nan, 1]),
       (~Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, nan, nan, nan, nan]),
       (~Leaf('z')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, nan, nan, nan, nan]),
       (Leaf('x') & Leaf('empty')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1.] * 6),
       (~Leaf('empty')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([0., 1., 1., 2., 3, 1.]),
       (Leaf('x') | (~Leaf('x'))).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, 2., nan, nan, nan]),
       (Leaf('y') & (~Leaf('x'))).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([0, 1, nan, 2, 3, nan]),
       (Leaf('x') & 1).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1, 1, nan, 1, 1, nan]),
       (1 & Leaf('x')).Eval(df))
 
@@ -92,50 +109,50 @@ class ExpressionTest(TestCase):
                        'y': [1, nan, 2, nan, 4, nan],
                        'z': [1., 2., 3., 2., 5., 2.],
                        'empty': [nan] * 6})
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., nan, nan, nan, 1., nan]),
       (Leaf('x') < Leaf('y')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., nan, nan, nan, 1., nan]),
       (Leaf('y') > Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., 1., nan, nan, 1., nan]),
       (Leaf('z') > Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., 1., nan, 1., 1., nan]),
       (Leaf('z') >= Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., nan, nan, nan, nan, nan]),
       (Leaf('z') == 1.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., nan, nan, nan, nan, nan]),
       (1 >= Leaf('z')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, 1., 1., 1., 1., 1.]),
       (1 < Leaf('z')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([1., 1., 1., 1., 1., 1.]),
       (Leaf('z') >= 1.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, 1., 1., 1., 1., 1.]),
       (Leaf('z') >= 2.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, nan, 1., nan, 1., nan]),
       (Leaf('z') > 2.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, 1, nan, 1, nan, 1]),
       (Leaf('z') == 2.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([nan, 1, nan, 1, nan, 1]),
       (2. == Leaf('z')).Eval(df))
 
   def testLogExp(self):
     df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
                        'y': [1, nan, 2, nan, 4, nan]})
-    pd_test.assert_series_equal(pd.Series([0.] * 6), E.Log(1.).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(pd.Series([0.] * 6), E.Log(1.).Eval(df))
+    assert_series_equal(
       pd.Series([-np.inf, 0, nan, np.log(2.), np.log(3.), nan]),
       E.Log(Leaf('x')).Eval(df))
-    pd_test.assert_series_equal(
+    assert_series_equal(
       pd.Series([0., 1., nan, 2., 3., nan]),
       E.Exp(E.Log(Leaf('x'))).Eval(df))

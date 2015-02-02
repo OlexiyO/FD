@@ -54,8 +54,7 @@ def DFForPrediction(extra_fd_file):
     'opponent': opponent,
     'team': team,
     'player': player,
-    'player_id': player_id,
-    'for_prediction': True})
+    'player_id': player_id})
 
 
 def LoadDataForSeason(year, extra_fd_file=None):
@@ -63,13 +62,15 @@ def LoadDataForSeason(year, extra_fd_file=None):
   DATA_DIR = 'C:/Coding/FanDuel/data/crawl/%d/csv/regular/' % year
   dfs = [pd.DataFrame.from_csv(os.path.join(DATA_DIR, fname))
          for fname in os.listdir(DATA_DIR)]
+  for df in dfs:
+    df['for_prediction'] = False
+
   if extra_fd_file:
     fd_df = DFForPrediction(extra_fd_file)
+    fd_df['for_prediction'] = True
     for cname in dfs[0].columns:
       if cname not in fd_df.columns:
         fd_df[cname] = 0
-    for df in dfs:
-      df['for_prediction'] = False
     dfs.append(fd_df)
 
   print 'Loaded from disk:', time.clock() - t0
@@ -77,7 +78,8 @@ def LoadDataForSeason(year, extra_fd_file=None):
 
   DF['date_id'] = DF['game_id'].map(lambda x: x[:8]).astype(int)
   AggregatePlayerPerGameFeatures(DF, aggregator=aggregation.Mean, suffix='per_game')
-  AggregatePlayerPerGameFeatures(DF, aggregator=aggregation.MeanLast10, suffix='mean_last_10')
+  AggregatePlayerPerGameFeatures(DF, aggregator=aggregation.AfterChange10_4, suffix='per_game_c_10_4')
+  AggregatePlayerPerGameFeatures(DF, aggregator=aggregation.AfterChange15_5, suffix='per_game_c_15_5')
   AggregatePlayerPerGameFeatures(DF, aggregator=aggregation.MedianLast10, suffix='median_last_10')
   AddRestFeaturesForPlayer(DF)
   AddOpponentFeatures(DF)
@@ -106,7 +108,10 @@ def PrepareDF(df):
 
 
 def AddSecondaryFeatures(df):
-  for suffix in ['', '_per_game', '_mean_last_10', '_median_last_10']:
+  # '_mean_last_10',
+  for suffix in ['', '_per_game', '_median_last_10',
+                 '_per_game_c_10_4',
+                 '_per_game_c_15_5']:
     df['fantasy_pts%s' % suffix] = (
       df['pts%s' % suffix] +
       1.2 * df['trb%s' % suffix] +
