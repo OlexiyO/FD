@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import itertools
 
@@ -12,9 +13,10 @@ from lib.misc_functions import PrintRows
 from lib.plotting import HistogramPlot
 
 
+EmulationResult = namedtuple('EmulationResult', ['score', 'team'])
+
 def Emulate(fd_data, player_predictions, player_results,
-            requests=Position.FD_REQUEST, salary_cap=60000,
-            print_selections=False):
+            requests=Position.FD_REQUEST, salary_cap=60000):
   """
 
   Args:
@@ -31,10 +33,8 @@ def Emulate(fd_data, player_predictions, player_results,
   best = knapsack.BestChoice(updated_data, requests, salary_cap)
   if best is None:
     return None
-  if print_selections:
-    for p in best:
-      print p, player_results.get(p.pid, 0)
-  return sum(player_results.get(pi.pid, 0) for pi in best)
+  return EmulationResult(score=sum(player_results.get(pi.pid, 0) for pi in best),
+                         team=best)
 
 
 def _SeriesToPlayerMap(series, date):
@@ -75,8 +75,7 @@ def _CheckFDGames(fd_games_generator, predictions, df, requests,
     pred_for_day = [dict(itertools.izip(pid, ps[flt])) for ps in pred_series]
     results_for_day = dict(itertools.izip(pid, expr_real_result.Eval(df)[flt]))
     results = [Emulate(players_list, pred, results_for_day,
-                       print_selections=print_selections,
-                       requests=requests)
+                       requests=requests).score
                for pred in pred_for_day]
     if all(r < 30 for r in results):
       continue
@@ -91,11 +90,52 @@ def _CheckFDGames(fd_games_generator, predictions, df, requests,
 
 def _FDGamesGenerator(fd_dir):
   for fname in os.listdir(fd_dir):
-    if not fname.endswith('.html'):
+    if fname.endswith('late.html') or not fname.endswith('.html'):
       continue
     players_list = FDFromFile(os.path.join(FD_DIR, fname))
     date_need = fname[:10].replace('_', '')
     yield date_need, players_list
+
+
+def PredictDay(df, prediction, fd_date,
+               requests=Position.FD_REQUEST,
+               only_healthy=True,
+               banned_players=None,
+               included_players=None,
+               expr_real_result=expression.Leaf('fantasy_pts')):
+  banned_players = banned_players or []
+  included_players = included_players or []
+  prediction = expression.LeafOrExpr(prediction)
+  filepath = os.path.join(FD_DIR, '%s.html' % fd_date)
+  assert os.path.exists(filepath), filepath
+  date_need = fd_date.replace('_', '')
+  small_df = df[df['date_id'] == int(date_need)]
+  pid = small_df['player_id']
+
+  players_list = FDFromFile(filepath)
+  if only_healthy:
+    players_list = [p for p in players_list
+                    if p.status == PlayerStatus.OK]
+  pred_for_day = dict(itertools.izip(pid, prediction.Eval(small_df)))
+  results_for_day = dict(itertools.izip(pid, expr_real_result.Eval(small_df)))
+  requests_adjusted = dict(requests)
+  salary_cap = 60000
+  preselected = []
+  for p in players_list:
+    if p.pid in included_players:
+      requests_adjusted[p.position] -= 1
+      salary_cap -= p.salary
+      preselected.append(p.Override(pts=-1))
+
+  players_list = [p for p in players_list
+                  if p.pid not in included_players and p.pid not in banned_players]
+  result = Emulate(players_list, pred_for_day, results_for_day,
+                   requests=requests_adjusted, salary_cap=salary_cap)
+  print requests_adjusted
+  result = EmulationResult(score=result.score, team=result.team + preselected)
+  for b in result.team:
+    print 'Scored:', '{:4.1f}'.format(results_for_day.get(b.pid, 0)), b
+  return result
 
 
 def CheckAllFDGames(predictions, df, requests=Position.FD_REQUEST,
@@ -182,4 +222,4 @@ def PredictTomorrow(df, fname, expr):
     if pi.status != PlayerStatus.OUT and pi.pid not in players_out]
   best = knapsack.BestChoice(updated_data, Position.FD_REQUEST, 60000)
   for b in best:
-    print b, player_predictions[b.pid]
+    print 'Predicted:', '{:4.1f}'.format(player_predictions[b.pid]), b

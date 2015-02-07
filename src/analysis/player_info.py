@@ -36,3 +36,12 @@ class PlayerInfo(namedtuple(
     d = self._asdict()
     d.update(kwargs)
     return PlayerInfo(**d)
+
+  def ShortName(self):
+    return '%15s' % self.name[:15]
+
+  def __str__(self):
+    basic = '%s, %2s: %4.1f for %5d$' % (self.ShortName(), self.position, self.pts, self.salary)
+    if self.health or self.status:
+      basic = '(%s %s) %s' % (self.health, self.status, basic)
+    return basic

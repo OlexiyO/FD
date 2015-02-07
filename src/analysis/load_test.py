@@ -54,7 +54,7 @@ class LoadTest(TestCase):
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
                                         aggregator=aggregation.Mean,
-                                        suffix='per_game')
+                                        suffixes='per_game')
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,minutes,games_played,pts_per_game,trb_per_game',
       'ole:20141003sas,13,5,3,20141003sas,sas,10,1,24,15',
@@ -84,7 +84,7 @@ class LoadTest(TestCase):
     test_df = pd.DataFrame.from_csv(sio)
     load.AggregatePlayerPerGameFeatures(test_df, ['pts', 'trb'],
                                         aggregator=aggregation.LastOne,
-                                        suffix='last')
+                                        suffixes='last')
     expected_sio = StringIO.StringIO('\n'.join([
       ',pts,trb,ast,game_id,team,minutes,games_played,pts_last,trb_last',
       'ole:20141003sas,13,5,3,20141003sas,sas,10,1,24,15',

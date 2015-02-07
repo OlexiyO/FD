@@ -12,6 +12,10 @@ class Aggregator(object):
   def get(self):
     raise NotImplementedError
 
+  @staticmethod
+  def numOutputs():
+    return 1
+
 
 class Mean(Aggregator):
   def __init__(self):
@@ -114,7 +118,7 @@ class AfterChange(Aggregator):
     count = self._nkeeper.Count()
     lsum = 0
     if count < self._N:
-      return np.nan
+      return np.nan, np.nan
     stop_at = count - self._min_split
     diff, res = 0, 0
     for i, v in enumerate(self._nkeeper.Data()):
@@ -125,11 +129,11 @@ class AfterChange(Aggregator):
       if lcount >= self._min_split:
         lval = lsum / float(i + 1)
         rval = (self._sum - lsum) / float(count - lcount)
-        new_diff = abs(rval - lval)
-        if new_diff > diff:
+        new_diff = rval - lval
+        if abs(new_diff) > abs(diff):
           diff, res = new_diff, rval
 
-    return res
+    return res, diff
 
   def update(self, value):
     dropped = self._nkeeper.Add(value)
@@ -137,8 +141,14 @@ class AfterChange(Aggregator):
       self._sum -= dropped
     self._sum += value
 
+  @staticmethod
+  def numOutputs():
+    return 2
+
 
 MeanLast10 = lambda: MeanLastN(10)
+MeanLast5 = lambda: MeanLastN(5)
+MeanLast3 = lambda: MeanLastN(3)
 LastOne = lambda: MeanLastN(1)
 AfterChange10_4 = lambda: AfterChange(10, 4)
 AfterChange15_5 = lambda: AfterChange(15, 5)

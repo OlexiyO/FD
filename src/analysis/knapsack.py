@@ -20,8 +20,8 @@ def BestChoice(players, per_position_counts, salary_cap):
 
   BAD = -10000000.
   salaries = [int((cand.salary + 99) / 100) for cand in candidates]
-  assert all(s > 0 for s in salaries), salaries
-  assert all(c.pts < 1000 for c in candidates), candidates
+  assert all(s > 0 for s in salaries), [s for s in salaries if s <= 0]
+  assert all(c.pts < 1000 for c in candidates), [c for c in candidates if c.pts >= 1000]
 
   def GV(request_index, candidate_index, salary_left):
     if request_index >= N:
