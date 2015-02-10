@@ -5,7 +5,6 @@ import pandas as pd
 
 from analysis.player_info import NormalizeName
 
-
 DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
 
 

@@ -22,6 +22,8 @@ class ExpressionTest(TestCase):
     self.assertEqual('(x | 1.0)', (Leaf('x') | 1).Expr())
     self.assertEqual('log(x)', E.Log(Leaf('x')).Expr())
     self.assertEqual('log((x & y))', E.Log(Leaf('x') & Leaf('y')).Expr())
+    self.assertEqual('min(x,y)', E.Min(Leaf('x'), Leaf('y')).Expr())
+    self.assertEqual('max(x,y,y)', E.Max(Leaf('x'), Leaf('y'), Leaf('y')).Expr())
 
   def testEvalWithNan(self):
     df = pd.DataFrame({'x': [0., 1., np.nan, np.nan],
@@ -60,7 +62,7 @@ class ExpressionTest(TestCase):
     assert_series_equal(2. / df.trb, (2. / Leaf('trb')).Eval(df))
     assert_series_equal(df.trb / 2., (Leaf('trb') / 2).Eval(df))
 
-    assert_series_equal(df.trb ** 2., (Leaf('trb') ** 2).Eval(df))
+    assert_series_equal((df.trb ** 2.).astype(float), (Leaf('trb') ** 2.).Eval(df))
 
   def testAndOr(self):
     df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
@@ -156,3 +158,12 @@ class ExpressionTest(TestCase):
     assert_series_equal(
       pd.Series([0., 1., nan, 2., 3., nan]),
       E.Exp(E.Log(Leaf('x'))).Eval(df))
+
+  def testMinMax(self):
+    x, y = Leaf('x'), Leaf('y')
+    df = pd.DataFrame({'x': [0, 1, nan, 2, 3, nan],
+                       'y': [1, nan, 2, nan, 4, nan]})
+    assert_series_equal(pd.Series([0., 1, 2, 2, 3, np.nan]),
+                        E.Min(x, y).Eval(df))
+    assert_series_equal(pd.Series([2., 1, 4, 2, 8, np.nan]),
+                        E.Max(x, y, 2 * y).Eval(df))

@@ -61,6 +61,11 @@ class AbstractExpression(object):
   def __ror__(self, other):
     return BinaryDFMethod('fillna', other, self)
 
+  def __pow__(self, other):
+    return Func(lambda x, y: x ** y,
+                lambda x, y: '%s ** %s' % (x, y),
+                self, other)
+
   def __invert__(self):
     return Func(lambda x: pd.Series(1., index=x.index)[x.isnull()],
                 lambda x: '~%s' % x,
@@ -112,17 +117,20 @@ def CreateConst(x):
 
 
 class Func(AbstractExpression):
-  def __init__(self, func, printout, *args):
+  def __init__(self, func, printout, *args, **kwargs):
     self._func = func
     self._printout = printout
     self._args = [CreateConst(a) for a in args]
+    self._need_parens = kwargs.pop('need_parens', True)
+    assert not kwargs, kwargs
 
   def Eval(self, df):
     evaled_args = [a.Eval(df) for a in self._args]
     return self._func(*evaled_args).reindex(evaled_args[0].index)
 
   def Expr(self):
-    return '(%s)' % self._printout(*[a.Expr() for a in self._args])
+    template = '(%s)' if self._need_parens else '%s'
+    return template % self._printout(*[a.Expr() for a in self._args])
 
 
 class UnaryOperator(AbstractExpression):
@@ -196,3 +204,17 @@ class EOperators(object):
   @staticmethod
   def Abs(x):
     return UnaryOperator(np.abs, x)
+
+  @staticmethod
+  def Min(*args):
+    return Func(lambda *args1: pd.DataFrame(list(args1)).min(),
+                lambda *args1: 'min(%s)' % (','.join(args1)),
+                *args,
+                need_parens=False)
+
+  @staticmethod
+  def Max(*args):
+    return Func(lambda *args1: pd.DataFrame(list(args1)).max(),
+                lambda *args1: 'max(%s)' % (','.join(args1)),
+                *args,
+                need_parens=False)

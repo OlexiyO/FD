@@ -49,3 +49,5 @@ scoring = extra0a * extra1a * Leaf('fantasy_pts_per_game')
 
 mpg_adjust = (Leaf('minutes_mean_last_5') | Leaf('minutes_per_game') | 10.) / (Leaf('minutes_per_game') | 10.)
 with_mpg_adjust = Leaf('fantasy_pts_per_game') * mpg_adjust
+
+# mpg_mix = Leaf('fantasy_pts_per_game') * mpg_adjust +

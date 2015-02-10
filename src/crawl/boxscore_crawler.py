@@ -1,33 +1,16 @@
 import os
 import time
-
 import random
+
 import requests
 from bs4 import BeautifulSoup
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # TODO: take games from http://www.basketball-reference.com/leagues/NBA_2015_games.html
 from crawl import boxscore_parser
 
 BASE_BREF_PATH = 'http://www.basketball-reference.com'
-DATA_DIR = 'C:/Coding/FanDuel/data/crawl'
+DATA_DIR = boxscore_parser.DATA_DIR
 DELAY = 10.  # How often do we request pages.
 
 

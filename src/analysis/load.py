@@ -6,6 +6,7 @@ import time
 import numpy as np
 import pandas as pd
 
+from crawl import boxscore_crawler
 from crawl.fanduel_parser import ParseFDFile
 from analysis import aggregation
 
@@ -59,7 +60,7 @@ def DFForPrediction(extra_fd_file):
 
 def LoadDataForSeason(year, extra_fd_file=None):
   t0 = time.clock()
-  DATA_DIR = 'C:/Coding/FanDuel/data/crawl/%d/csv/regular/' % year
+  DATA_DIR = os.path.join(boxscore_crawler.DATA_DIR, '%d/csv/regular/' % year)
   dfs = [pd.DataFrame.from_csv(os.path.join(DATA_DIR, fname))
          for fname in os.listdir(DATA_DIR)]
   for df in dfs:

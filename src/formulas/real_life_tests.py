@@ -9,10 +9,17 @@ global_prediction = None
 
 
 class RealLifeTests(TestCase):
+  def _TestIn(self, who, day):
+    result = PredictDay(global_DF_15, global_prediction, day)
+    self.assertTrue(who in [x.pid for x in result.team], msg=result)
+
+  def _TestOut(self, who, day):
+    result = PredictDay(global_DF_15, global_prediction, day)
+    self.assertFalse(who in [x.pid for x in result.team], msg=result)
+
   def testDrasticChange(self):
-    result = PredictDay(global_DF_15, global_prediction, '2014_12_16')
-    print result
-    self.assertFalse('jacksre01' in [x.pid for x in result.team])
+    self._TestOut('jacksre01', '2014_12_16')
+    self._TestIn('whiteha01', '2015_01_25')
 
 
 def TestPrediction(DF_15, prediction):

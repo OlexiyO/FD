@@ -3,8 +3,8 @@ import os
 import itertools
 
 import pandas as pd
-from lib import expression
 
+from lib import expression
 from analysis import knapsack
 from analysis.player_info import Position, PlayerStatus, PlayerInfo
 from crawl.fanduel_parser import ParseFDFile
@@ -44,9 +44,6 @@ def _SeriesToPlayerMap(series, date):
     assert game_id.startswith(date)
     res[pid] = value
   return res
-
-
-DF_15 = None
 
 
 def FDFromFile(filepath):
